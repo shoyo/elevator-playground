@@ -1,43 +1,24 @@
+import simpy
+from sim_utils import print_status
+
+
 class Elevator:
     def __init__(self):
+        self.env = None
         self.position = 1
-        self.dest = None
-        self.num_passengers = 0
-        self.capacity = 10
-        self.movement = 0  # 0 = stationary, 1 = moving up, -1 = moving down
-        self.max_speed = None
-        self.acceleration = None
-        self.distance_traveled = 0
-        self.requests = None            # List[tuple(start, dest)]
-        self.pick_up_requests = {}      # {floor : passenger count}
-        self.drop_off_requests = {}     # {floor : passenger count}
-        self.month = None
-        self.date = None
-        self.time = 0
-
-    def do_request(self, request):
-        self.dest = request.dest
+        self.max_capacity = 0
+        self.curr_capacity = 0
+        self.pickup_duration = 70
+        self.dropoff_duration = 70
 
 
-    def move_up(self, n=1):
-        self.position += n
+class BasicElevator(Elevator):
+    def __init__(self):
+        super().__init__()
+        self.max_capacity = 10
+       
+    def set_env(self, env):
+        self.env = env
 
-    def move_down(self, n=1):
-        self.position -= n
-
-    def pick_up(self, n=1):
-        self.num_passengers += n
-
-    def drop_off(self, n=1):
-        if self.num_passengers < 0:
-            raise Exception('There are no passengers to drop off.')
-        self.num_passengers -= n
-
-    def print_status(self):
-        print(f'Floor { self.position }')
-        if self.movement == 0:
-            print('Stopped')
-        elif self.movement == 1:
-            print('Continuing up')
-        else:
-            print('Continuing down')
+    def handle_req(self, request):
+        print_status(self.env.now, f'Request {request.id} confirmed') 

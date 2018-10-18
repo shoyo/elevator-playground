@@ -1,24 +1,23 @@
+import simpy
+
+
 class Session:
     def __init__(self, building):
+        self.env = simpy.Environment()
         self.building = building
-        self.clock = 0
-        self.total_time = 0
 
-    def set_total_time(self, time):
-        if time < 1:
-            raise Exception('Total time must be positive')
-        self.total_time = time
+        self.building.set_env(self.env)
+        for elevator in self.building.elevators:
+            elevator.set_env(self.env)
+
+        self.total_runtime = 36000  # 1 hour (10 frames per second)
 
     def run(self):
-        if not self.building.elevators or not self.building.floors:
-            raise Exception('Insufficient building. Cannot start session.')
+        print('BEGINNING SESSION')
+        print('=================')
+        self.env.run(until=self.total_runtime)
+        print('=================')
+        print('ENDING SESSION')
 
-        print('==== Beginning Session ====')
-        while self.clock < self.total_time:
-            try:
-                self.building.operate(self.clock)
-            except:
-                print('Unexpected error occurred during session. Ending session.')
-                raise
-            self.clock += 1
-        print('===== Ending Session ======')
+    def set_total_runtime(self, n):
+        self.total_runtime = n
