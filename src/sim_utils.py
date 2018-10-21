@@ -1,26 +1,6 @@
 from random import sample
 
 
-class Request:
-
-    global_id = 0
-    
-    def __init__(self, origin, destination, time):
-        self.origin = origin
-        self.dest = destination
-        self.time = time
-        self.id = self.generate_id() 
-
-    def generate_id(self):
-        yield global_id
-        global_id += 1
-    
-    
-def randreq(time, upper_bound, lower_bound=1):
-    origin, dest = sample([i for i in range(lower_bound, upper_bound + 1)], 2)
-    return Request(origin, dest, time)
-
-
 def frameToTime(frames):
     """ Converts frames (10 fps) into corresponding formattted
     string 'hh:mm:ss:msms'.
@@ -48,4 +28,29 @@ def frameToTime(frames):
 
 def print_status(time, status):
     print(f'{frameToTime(time)} - {status}')
+
+
+def id_generator():
+    id = 1
+    while True:
+        yield id
+        id += 1
+ 
+
+id_gen = id_generator()
+
+
+class Request:
+    def __init__(self, origin, destination, time):
+        self.id = next(id_gen) 
+        self.origin = origin
+        self.dest = destination
+        self.time = time
+        self.wait_time = None
+        self.done = False
+
+ 
+def randreq(time, upper_bound, lower_bound=1):
+    origin, dest = sample([i for i in range(lower_bound, upper_bound + 1)], 2)
+    return Request(origin, dest, time)
 
