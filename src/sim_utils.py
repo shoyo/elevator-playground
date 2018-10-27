@@ -9,6 +9,7 @@ def frameToTime(frames):
     >>> frameToTime(72000)
     '2:00:00:00'
     """
+    frames = int(frames)
     msec = frames % 10 * 6
     frames //= 10 
     hour = frames // 3600
@@ -17,13 +18,13 @@ def frameToTime(frames):
     sec = frames % 60
     
     if min // 10 == 0:
-        min = f'0{min}'
+        min = '0{}'.format(min)
     if sec // 10 == 0:
-        sec = f'0{sec}'
+        sec = '0{}'.format(sec)
     if msec // 10 == 0:
-        msec = f'0{msec}'
+        msec = '0{}'.format(msec)
 
-    return f'{hour}:{min}:{sec}:{msec}'
+    return '{:>4}:{}:{}:{}'.format(hour, min, sec, msec)
 
 
 def print_status(time, status):
@@ -53,4 +54,8 @@ class Request:
 def randreq(time, upper_bound, lower_bound=1):
     origin, dest = sample([i for i in range(lower_bound, upper_bound + 1)], 2)
     return Request(origin, dest, time)
+
+
+def flag():
+    print("========================FLAG========================")
 

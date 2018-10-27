@@ -27,10 +27,9 @@ class BasicElevator(Elevator):
         self.f2f_time = 100     # 10 seconds
 
     def handle_req(self, request):
-        print_status(self.env.now,
+        print_status(self.env.now, 
                 f'[Confirm] Req {request.id}: Elevator {self.id} at floor {self.position}') 
-        if self.position != request.origin:
-            self.move_to(request.origin)
+        self.move_to(request.origin)
         self.pick_up()
         request.wait_time = self.env.now - request.time
         print_status(self.env.now, f'Req {request.id} waited {request.wait_time / 10} s')
@@ -40,20 +39,16 @@ class BasicElevator(Elevator):
         print_status(self.env.now, f'[Done] Req {request.id}')
 
     def move_to(self, target_floor):
-        print('move_to() was called')
         if target_floor > self.position:
             self.movement = 1
         elif target_floor < self.position:
             self.movement = -1
-
         while self.position != target_floor:
-            self.env.process(self.move_one_floor())
+            self.env.run(self.env.process(self.move_one_floor()))
             self.position += self.movement
-
         self.movement = 0
 
     def move_one_floor(self):
-        print("moving one floor")
         yield self.env.timeout(self.f2f_time)
 
     def pick_up(self):
@@ -69,4 +64,4 @@ class BasicElevator(Elevator):
         self.curr_capacity -= 1
         print_status(self.env.now,
                 f'(drop off) Elevator {self.id} at floor {self.position}, capacity now {self.curr_capacity}')
-        
+

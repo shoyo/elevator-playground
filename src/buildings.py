@@ -5,7 +5,7 @@ from sim_utils import print_status, randreq
 class Building:
     def __init__(self, floors, elevators):
         self.env = None
-        self.action = None
+        self.start = None
         self.floors = floors
         self.elevators = elevators
         self.num_elevators = len(elevators)
@@ -23,11 +23,11 @@ class BasicBuilding(Building):
 
     def set_env(self, env):
         self.env = env
-        self.action = env.process(self.make_reqs())
+        self.start = env.process(self.make_reqs())
 
     def make_reqs(self):
         while True:
-            yield self.env.timeout(randint(6000, 9000))
+            yield self.env.timeout(randint(1, 2))
             request = randreq(self.env.now, self.floors)    
             print_status(self.env.now,
                     f'[Generate] Req {request.id}: floor {request.origin} to {request.dest}')

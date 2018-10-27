@@ -1,9 +1,11 @@
 from elevators import BasicElevator
 from buildings import BasicBuilding
 from session import Session
+import random
 
 
 def run_simulation():
+    random.seed(1)
     elevator = BasicElevator()
     building = BasicBuilding(10, [elevator])
     session = Session(building)
