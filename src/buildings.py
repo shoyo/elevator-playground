@@ -1,32 +1,56 @@
 from random import randint
 from sim_utils import print_status, rand_call
-from collections import deque
+from abc import ABC, abstractmethod
 
 
-class Building:
-    def __init__(self, floors, elevators):
+class Building(ABC):
+    def __init__(self, num_floors, elevators):
+        """
+        :param int num_floors: number of floors
+        :param list[Elevator] elevators: list of elevator instances
+        """
         self.env = None
-        self.start = None
-        self.floors = floors
-        self.elevators = elevators
+        self.process = None
+
+        self.num_floors = num_floors
         self.num_elevators = len(elevators)
+        self.elevators = elevators
+
+        # Map of floor to length of respective queue
+        self.floor_queues = {}
+        for i in range(1, num_floors + 1):
+            self.floor_queues[i] = 0
+
+        # ID assignment to each elevator
         for i in range(self.num_elevators):
-            self.elevators[i].id = i
-        self.all_calls = deque()
+            self.elevators[i].id = i + 1
 
-    def start_calls(self):
-        """ Start generating random elevator calls."""
+        self.all_calls = []
+
+    def set_env(self, env):
+        self.env = env
+        self.process = env.process(self.start())
+
+    def update_floor_queues(self):
         pass
 
+    @abstractmethod
+    def start(self):
+        """ Start generating random elevator calls and dispatching elevators."""
+        pass
+
+    @abstractmethod
     def generate_call(self):
-        """ Randomly generates an elevator call according to some distribution."""
+        """ Generates a call from an origin floor to a destination floor according to some distribution."""
         pass
 
+    @abstractmethod
     def select_elevator(self, call):
         """ Judiciously selects an elevator to handle a generated call."""
         pass
 
-    def process_call(self, call):
+    @abstractmethod
+    def process_call(self, call, elevator):
         """ Tell selected elevator how to process the call."""
         pass
 
@@ -45,49 +69,37 @@ class BasicBuilding(Building):
              effective)
     """
 
-    def __init__(self, floors, elevators):
-        super().__init__(floors, elevators)
-
-    def set_env(self, env):
-        self.env = env
-        self.start = env.process(self.generate_calls())
-
-    def generate_calls(self):
+    def start(self):
         while True:
+            # generate a random call
+            # TODO: handle specified distribution instead of simple random
             yield self.env.timeout(randint(30, 30))
-            call = rand_call(self.env.now, self.floors)
-            print_status(self.env.now,
-                         f'[Generate] call {call.id}: floor {call.origin} to {call.dest}')
-            self.handle_call(call)
+            call = self.generate_call()
+            elevator = self.select_elevator(call)
+            self.process_call(call, elevator)
 
-            self.all_calls.append(call)
+    def generate_call(self):
+        call = rand_call(self.env.now, self.num_floors)
+        print_status(self.env.now, f'[Generate] call {call.id}: floor {call.origin} to {call.dest}')
+        self.floor_queues[call.origin] += 1
+        self.all_calls.append(call)
+        return call
 
-            # while True:
-            # if there exists a valid elevator:
+    def select_elevator(self, call):
+        selected = self.elevators[0]
 
-            self.assign_call(call, randint(0, self.num_elevators - 1))
-
-    # Copied over from elevators.py
-    def handle_call(self, call):
         print_status(self.env.now,
-                     f'[Confirm] call {call.id}: Elevator {self.id} at floor {self.position}')
-        self.move_to(call.origin)
-        self.pick_up()
-        call.wait_time = self.env.now - call.orig_time
+                     f'[Select] call {call.id}: Elevator {selected.id}')
+        return selected
 
+    def process_call(self, call, elevator):
+        elevator.move_to(call.origin)
+        elevator.pick_up()
+        call.wait_time = self.env.now - call.orig_time
         print_status(self.env.now, f'call {call.id} waited {call.wait_time / 10} s')
-        self.move_to(call.dest)
-        self.drop_off()
+        elevator.move_to(call.dest)
+        elevator.drop_off()
         call.done = True
         call.process_time = self.env.now - call.orig_time
+
         print_status(self.env.now, f'[Done] call {call.id}')
-
-    # REFACTOR
-    def dispatch_calls(self):
-        with self.elevators[elevator_index].request() as request:
-            pass
-
-    def assign_call(self, call, elevator_index):
-        print_status(self.env.now,
-                     f'[Assign] call {call.id}: Elevator {elevator_index}')
-        self.elevators[elevator_index].handle_call(call)

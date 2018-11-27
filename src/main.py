@@ -11,9 +11,8 @@ def run_simulation():
     session = Session(building)
     session.total_runtime = 36000
     session.run()
-    return 0
 
 
 if __name__ == '__main__':
-    ret = run_simulation()
+    run_simulation()
 

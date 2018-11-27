@@ -52,10 +52,18 @@ class Call:
         self.done = False
 
 
+# TODO: Create call generator class in order to control call arrival distributions
+class CallGenerator:
+    """ Generates elevator calls according to Poisson distribution. """
+
+    def __init___(self, arrival_dist, floor_dist):
+        pass
+
+
 def rand_call(time, floor_upper_bound, floor_lower_bound=1):
     """ Generates a random elevator call at time 'time' from floors between lower and upper bound.
     """
     # TODO: Make floor choice between upper and lower bound dependent on given distribution.
     # TODO: (ex. upstream/downstream traffic, base floor congestion etc.).
-    origin, dest = sample((i for i in range(floor_lower_bound, floor_upper_bound + 1)), 2)
+    origin, dest = sample([i for i in range(floor_lower_bound, floor_upper_bound + 1)], 2)
     return Call(origin, dest, time)

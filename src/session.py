@@ -24,7 +24,7 @@ class Session:
         self.disp_metrics()
 
     def disp_metrics(self):
-        # TODO: make this more efficient
+        # TODO: Maybe make this more efficient
         total_wait = sum(r.wait_time for r in self.building.all_calls if
                          r.done)
         avg_wait = total_wait / sum(1 for _ in (r for r in
