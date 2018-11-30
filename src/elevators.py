@@ -28,6 +28,7 @@ class Elevator:
 
     def move_to(self, target_floor):
         if target_floor > self.curr_floor:
+<<<<<<< HEAD
             self.movement = UP
         elif target_floor < self.curr_floor:
             self.movement = DOWN
@@ -35,6 +36,15 @@ class Elevator:
             self.env.run(self.env.process(self._move_one_floor()))
             self.curr_floor += self.movement
         self.movement = IDLE
+=======
+            self.movement = 1
+        elif target_floor < self.curr_floor:
+            self.movement = -1
+        while self.curr_floor != target_floor:
+            self.env.run(self.env.process(self._move_one_floor()))
+            self.curr_floor += self.movement
+        self.movement = 0
+>>>>>>> 7e7e1460220fce1892943e05ed0c7f2b9a503242
 
     def _move_one_floor(self):
         try:

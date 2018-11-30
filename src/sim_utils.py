@@ -52,6 +52,10 @@ class Call:
         self.done = False
 
 
+<<<<<<< HEAD
+=======
+# TODO: Create call generator class in order to control call arrival distributions
+>>>>>>> 7e7e1460220fce1892943e05ed0c7f2b9a503242
 class CallGenerator:
     """ Generates elevator calls according to Poisson distribution. """
 

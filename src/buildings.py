@@ -72,6 +72,10 @@ class BasicBuilding(Building):
 
     def start(self):
         while True:
+<<<<<<< HEAD
+=======
+            # generate a random call
+>>>>>>> 7e7e1460220fce1892943e05ed0c7f2b9a503242
             # TODO: handle specified distribution instead of simple random
             yield self.env.timeout(randint(30, 30))
             call = self.generate_call()
@@ -92,9 +96,12 @@ class BasicBuilding(Building):
                      f'[Select] call {call.id}: Elevator {selected.id}')
         return selected
 
+<<<<<<< HEAD
     def new_process_call(self, call, elevator):
         elevator.queued_calls.append(call)
 
+=======
+>>>>>>> 7e7e1460220fce1892943e05ed0c7f2b9a503242
     def process_call(self, call, elevator):
         elevator.move_to(call.origin)
         elevator.pick_up()
