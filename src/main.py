@@ -1,4 +1,4 @@
-from elevators import BasicElevator
+from elevators import Elevator
 from buildings import BasicBuilding
 from session import Session
 import random
@@ -6,12 +6,13 @@ import random
 
 def run_simulation():
     random.seed(1)
-    elevator = BasicElevator()
-    building = BasicBuilding(10, [elevator])
+    elevator1, elevator2 = Elevator(15), Elevator(15)
+    building = BasicBuilding(10, [elevator1, elevator2])
     session = Session(building)
-    session.set_total_runtime(36000)
+    session.total_runtime = 36000
     session.run()
-    return 0
+
 
 if __name__ == '__main__':
     run_simulation()
+

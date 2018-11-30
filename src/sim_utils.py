@@ -1,34 +1,34 @@
 from random import sample
 
 
-def frameToTime(frames):
+def frame_to_time(frames):
     """ Converts frames (10 fps) into corresponding formattted
     string 'hh:mm:ss:msms'.
-    >>> frameToTime(100)
+    >>> frame_to_time(100)
     '0:00:10:00'
-    >>> frameToTime(72000)
+    >>> frame_to_time(72000)
     '2:00:00:00'
     """
     frames = int(frames)
     msec = frames % 10 * 6
-    frames //= 10 
+    frames //= 10
     hour = frames // 3600
-    frames %= 3600 
-    min = frames // 60
+    frames %= 3600
+    mins = frames // 60
     sec = frames % 60
-    
-    if min // 10 == 0:
-        min = '0{}'.format(min)
+
+    if mins // 10 == 0:
+        mins = '0{}'.format(mins)
     if sec // 10 == 0:
         sec = '0{}'.format(sec)
     if msec // 10 == 0:
         msec = '0{}'.format(msec)
 
-    return '{:>4}:{}:{}:{}'.format(hour, min, sec, msec)
+    return '{:>4}:{}:{}:{}'.format(hour, mins, sec, msec)
 
 
 def print_status(time, status):
-    print(f'{frameToTime(time)} - {status}')
+    print(f'{frame_to_time(time)} - {status}')
 
 
 def id_generator():
@@ -36,26 +36,33 @@ def id_generator():
     while True:
         yield id
         id += 1
- 
+
 
 id_gen = id_generator()
 
 
-class Request:
+class Call:
     def __init__(self, origin, destination, time):
-        self.id = next(id_gen) 
+        self.id = next(id_gen)
         self.origin = origin
         self.dest = destination
-        self.time = time
+        self.orig_time = time
         self.wait_time = None
+        self.process_time = None
         self.done = False
 
- 
-def randreq(time, upper_bound, lower_bound=1):
-    origin, dest = sample([i for i in range(lower_bound, upper_bound + 1)], 2)
-    return Request(origin, dest, time)
+
+class CallGenerator:
+    """ Generates elevator calls according to Poisson distribution. """
+
+    def __init___(self, arrival_dist, floor_dist):
+        pass
 
 
-def flag():
-    print("========================FLAG========================")
-
+def rand_call(time, floor_upper_bound, floor_lower_bound=1):
+    """ Generates a random elevator call at time 'time' from floors between lower and upper bound.
+    """
+    # TODO: Make floor choice between upper and lower bound dependent on given distribution.
+    # TODO: (ex. upstream/downstream traffic, base floor congestion etc.).
+    origin, dest = sample([i for i in range(floor_lower_bound, floor_upper_bound + 1)], 2)
+    return Call(origin, dest, time)
