@@ -34,16 +34,10 @@ class Session:
                                            r.done))
         avg_pt = sum(r.process_time for r in self.building.all_calls if
                      r.done) / sum(1 for _ in (r for r in self.building.all_calls if r.done))
-<<<<<<< HEAD
         max_pt = max(r.process_time for r in self.building.all_calls if r.done)
-=======
->>>>>>> 7e7e1460220fce1892943e05ed0c7f2b9a503242
 
         print(f'Average wait time    = {avg_wait / 10} s')
         print(f'Maximum wait time    = {max_wait / 10} s')
         print(f'Completion rate      = {completed_invocs}/{len(self.building.all_calls)}')
         print(f'Average process time = {avg_pt / 10} s')
-<<<<<<< HEAD
         print(f'Maximum process time = {max_pt / 10} s')
-=======
->>>>>>> 7e7e1460220fce1892943e05ed0c7f2b9a503242
