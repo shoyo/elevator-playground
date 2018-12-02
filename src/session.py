@@ -9,8 +9,9 @@ class Session:
         self.building.set_env(self.env)
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
+            elevator.set_call_queue()
         self.building.assign_elevator_ids()
-        self.building.set_start_process()
+        self.building.set_initial_process()
 
     def run(self):
         if self._valid_session():
@@ -27,17 +28,23 @@ class Session:
 
     def _valid_session(self):
         if self.total_runtime <= 0:
+            print("Session has runtime less than or equal to 0.")
             return False
         if not self.env:
+            print("Session does not has an environment.")
             return False
         if not self.building:
+            print("Session does not have a building.")
             return False
-        if not self.building.env or not self.building.process:
+        if not self.building.env or not self.building.initial_process:
+            print("Building does not have an environment or initial_process.")
             return False
         if not self.building.elevators:
+            print("Building does not have elevators.")
             return False
         for elevator in self.building.elevators:
-            if not elevator.env or elevator.id:
+            if not elevator.env or not elevator.id:
+                print("An Elevator does not have an environment or ID.")
                 return False
         return True
 
@@ -52,19 +59,19 @@ class Session:
 
     def _disp_metrics(self):
         # TODO: Maybe make this more efficient
-        total_wait = sum(r.wait_time for r in self.building.all_calls if
+        total_wait = sum(r.wait_time for r in self.building.call_history if
                          r.done)
         avg_wait = total_wait / sum(1 for _ in (r for r in
-                                                self.building.all_calls if r.done))
-        max_wait = max(r.wait_time for r in self.building.all_calls if r.done)
-        completed_invocs = sum(1 for _ in (r for r in self.building.all_calls if
+                                                self.building.call_history if r.done))
+        max_wait = max(r.wait_time for r in self.building.call_history if r.done)
+        completed_invocs = sum(1 for _ in (r for r in self.building.call_history if
                                            r.done))
-        avg_pt = sum(r.process_time for r in self.building.all_calls if
-                     r.done) / sum(1 for _ in (r for r in self.building.all_calls if r.done))
-        max_pt = max(r.process_time for r in self.building.all_calls if r.done)
+        avg_pt = sum(r.process_time for r in self.building.call_history if
+                     r.done) / sum(1 for _ in (r for r in self.building.call_history if r.done))
+        max_pt = max(r.process_time for r in self.building.call_history if r.done)
 
         print(f'Average wait time    = {avg_wait / 10} s')
         print(f'Maximum wait time    = {max_wait / 10} s')
-        print(f'Completion rate      = {completed_invocs}/{len(self.building.all_calls)}')
+        print(f'Completion rate      = {completed_invocs}/{len(self.building.call_history)}')
         print(f'Average process time = {avg_pt / 10} s')
         print(f'Maximum process time = {max_pt / 10} s')

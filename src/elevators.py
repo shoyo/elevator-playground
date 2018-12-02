@@ -11,6 +11,7 @@ class Elevator:
     def __init__(self, capacity):
         self.env = None
         self.id = None
+        self.call_queue = None
 
         self.curr_floor = 1
         self.dest_floor = None
@@ -23,14 +24,22 @@ class Elevator:
         self.dropoff_duration = 70
         self.f2f_time = 100
 
-        self.call_queue = simpy.Store()
-
     def set_env(self, env):
-        if not self.env:
-            self.env = env
-        else:
+        if self.env:
             raise Exception("Attempted to set environment for Elevator "
                             "which already had an environment.")
+        else:
+            self.env = env
+
+    def set_call_queue(self):
+        if not self.env:
+            raise Exception("Attempted to set call_queue for Elevator "
+                            "with no environment.")
+        if self.call_queue:
+            raise Exception("Attempted to set call_queue for Elevator "
+                            "that already had a call_queue.")
+        else:
+            self.call_queue = simpy.Store(self.env)
 
     def set_id(self, id):
         if not self.id:

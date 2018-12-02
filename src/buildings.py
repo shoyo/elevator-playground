@@ -11,7 +11,7 @@ class Building(ABC):
         :param list[Elevator] elevators: all Elevators in this Building
         """
         self.env = None
-        self.start_process = None
+        self.initial_process = None
 
         self.num_floors = num_floors
         self.elevators = elevators
@@ -23,31 +23,26 @@ class Building(ABC):
 
         self.call_history = []
 
-
-
-
-# wrong place
-    # TODO: RENAME THIS METHOD AND FIND AN APPROPRIATE PLACE TO PUT IT
-    def start_process(self):
+    def set_initial_process(self):
         if not self.env:
-            raise Exception("Attempted to assign start_process to a Building "
+            raise Exception("Attempted to assign initial process to a Building "
                             "with no environment.")
-        if not self.start_process:
-            raise Exception("Attempted to assign start_process to a Building "
-                            "that already had a start_process.")
-        self.start_process = self.env.process(self.start())
+        if self.initial_process:
+            raise Exception("Attempted to assign initial process to a Building "
+                            "that already had an initial process.")
+        else:
+            self.initial_process = self.env.process(self.start())
 
     def set_env(self, env):
-        if not self.env:
-            self.env = env
-        else:
+        if self.env:
             raise Exception("Attempted to set environment for Building "
                             "which already had an environment.")
+        else:
+            self.env = env
 
     def assign_elevator_ids(self):
         for i in range(self.num_elevators):
             self.elevators[i].set_id(i + 1)
-
 
     def update_floor_queues(self):
         pass

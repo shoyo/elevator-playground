@@ -52,14 +52,6 @@ class Call:
         self.done = False
 
 
-# TODO: (maybe) create call generator class in order to control call arrival distributions
-class CallGenerator:
-    """ Generates elevator calls according to Poisson distribution. """
-
-    def __init___(self, arrival_dist, floor_dist):
-        pass
-
-
 def rand_call(time, floor_upper_bound, floor_lower_bound=1):
     """ Generates a random elevator call at time 'time' from floors between lower and upper bound.
     """
