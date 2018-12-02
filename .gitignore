@@ -1,2 +1,4 @@
+.DS_Store
+.idea
 src/__pycache__
-src/.DS_store
+src/.DS_Store

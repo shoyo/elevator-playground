@@ -11,7 +11,9 @@ class Building(ABC):
         :param list[Elevator] elevators: all Elevators in this Building
         """
         self.env = None
-        self.initial_process = None
+        self.call_buffer = None
+        self.call_generator = None
+        self.call_processor = None
 
         self.num_floors = num_floors
         self.elevators = elevators
@@ -23,16 +25,6 @@ class Building(ABC):
 
         self.call_history = []
 
-    def set_initial_process(self):
-        if not self.env:
-            raise Exception("Attempted to assign initial process to a Building "
-                            "with no environment.")
-        if self.initial_process:
-            raise Exception("Attempted to assign initial process to a Building "
-                            "that already had an initial process.")
-        else:
-            self.initial_process = self.env.process(self.start())
-
     def set_env(self, env):
         if self.env:
             raise Exception("Attempted to set environment for Building "
@@ -40,31 +32,74 @@ class Building(ABC):
         else:
             self.env = env
 
+    def set_call_buffer(self):
+        if not self.env:
+            raise Exception("Attempted to set call_queue for Elevator "
+                            "with no environment.")
+        if self.call_buffer:
+            raise Exception("Attempted to set call_queue for Elevator "
+                            "that already had a call_queue.")
+        else:
+            self.call_buffer = simpy.Store(self.env)
+
+
+    def set_call_generator(self):
+        if not self.env:
+            raise Exception("Attempted to assign initial process to a Building " "with no environment.")
+        if self.call_generator:
+            raise Exception("Attempted to assign call_generator to a Building "
+                            "that already had an call_generator.")
+        else:
+            self.call_generator = self.env.process(self.generate_calls())
+
+
+    def set_call_processor(self):
+        if not self.env:
+            raise Exception("Attempted to assign initial process to a Building "
+                            "with no environment.")
+        if self.call_processor:
+            raise Exception("Attempted to assign call_processor to a Building "
+                            "that already had an call_processor.")
+        else:
+            self.call_processor = self.env.process(self.process_calls())
+
+
     def assign_elevator_ids(self):
         for i in range(self.num_elevators):
-            self.elevators[i].set_id(i + 1)
+            self.elevators[i].set_id(i)
+
 
     def update_floor_queues(self):
         pass
 
-    @abstractmethod
-    def start(self):
-        """ Start generating random elevator calls and dispatching elevators."""
-        pass
 
     @abstractmethod
-    def generate_call(self):
-        """ Generates a call from an origin floor to a destination floor according to some distribution."""
+    def generate_calls(self):
+        """ Periodically generates a call from an origin floor to a
+        destination floor."""
+
+
+    @abstractmethod
+    def generate_single_call(self):
+        """ Generates a single call."""
         pass
+
+
+    @abstractmethod
+    def process_calls(self):
+        """ Continuously check call buffer for any queued calls and process them."""
+        pass
+
+
+    @abstractmethod
+    def process_single_call(self, call, elevator):
+        """ Process a single call given an elevator."""
+        pass
+
 
     @abstractmethod
     def select_elevator(self, call):
         """ Judiciously selects an elevator to handle a generated call."""
-        pass
-
-    @abstractmethod
-    def process_call(self, call, elevator):
-        """ Tell selected elevator how to process the call."""
         pass
 
 
@@ -81,37 +116,46 @@ class BasicBuilding(Building):
              and wait for a call (or potentially move to another floor deemed more
              effective)
     """
-    # def __init__(self, num_floors, elevators):
-    #     super().__init__(num_floors, elevators)
-    #     self.dispatcher = BasicDispatcher()
-    #     self.dispatcher.start()
 
-    def start(self):
+    # TODO: DEPRECATING
+    def run(self):
         while True:
             # TODO: handle specified distribution instead of simple random
             yield self.env.timeout(randint(30, 30))
-            call = self.generate_call()
+            call = self.generate_single_call()
+
             elevator = self.select_elevator(call)
             self.process_call(call, elevator)
 
-    def generate_call(self):
+    def generate_calls(self):
+        while True:
+            yield self.env.timeout(randint(30, 30))
+            call = self.generate_single_call()
+            self.call_buffer.put(call)
+            self.call_history.append(call)
+            self.floor_queues[call.origin] += 1
+
+    def generate_single_call(self):
         call = rand_call(self.env.now, self.num_floors)
         print_status(self.env.now, f'[Generate] call {call.id}: floor {call.origin} to {call.dest}')
-        self.floor_queues[call.origin] += 1
-        self.call_history.append(call)
         return call
 
-    def select_elevator(self, call):
-        selected = self.elevators[0]
+    def process_calls(self):
+        pass
 
+    def process_single_call(self):
+
+    def select_elevator(self, call):
+        selected = self.elevators[randint(0, self.num_elevators - 1)]
         print_status(self.env.now,
                      f'[Select] call {call.id}: Elevator {selected.id}')
         return selected
 
-    def new_process_call(self, call, elevator):
-        elevator.queued_calls.append(call)
-
+    # TODO: DEPRECATING
     def process_call(self, call, elevator):
+        # After call is processed, the following must be updated
+        #    wait time, process time, "done"
+
         elevator.move_to(call.origin)
         elevator.pick_up()
         call.wait_time = self.env.now - call.orig_time
@@ -122,3 +166,7 @@ class BasicBuilding(Building):
         call.process_time = self.env.now - call.orig_time
 
         print_status(self.env.now, f'[Done] call {call.id}')
+
+
+class DeepReinforcementLearningBuilding:
+    pass

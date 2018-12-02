@@ -7,6 +7,7 @@ class Session:
         self.total_runtime = runtime
         self.env = simpy.Environment()
         self.building.set_env(self.env)
+        self.building.set_call_buffer()
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
             elevator.set_call_queue()
@@ -36,15 +37,21 @@ class Session:
         if not self.building:
             print("Session does not have a building.")
             return False
-        if not self.building.env or not self.building.initial_process:
-            print("Building does not have an environment or initial_process.")
+        if not self.building.env:
+            print("Building does not have an environment.")
+            return False
+        if not self.building.call_buffer:
+            print("Building does not have a call buffer.")
+            return False
+        if not self.building.call_generator or not self.building.call_processor:
+            print("Building does not have a call generator or processor.")
             return False
         if not self.building.elevators:
             print("Building does not have elevators.")
             return False
         for elevator in self.building.elevators:
-            if not elevator.env or not elevator.id:
-                print("An Elevator does not have an environment or ID.")
+            if not elevator.env or elevator.id is None or not elevator.call_queue:
+                print("An Elevator does not have an environment or ID or call queue.")
                 return False
         return True
 
