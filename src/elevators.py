@@ -1,7 +1,6 @@
 import sys
 import simpy
 from sim_utils import print_status
-from collections import deque
 
 UP = 1
 DOWN = -1
@@ -24,7 +23,7 @@ class Elevator:
         self.dropoff_duration = 70
         self.f2f_time = 100
 
-        self.queued_calls = deque()
+        self.call_queue = simpy.Store()
 
     def set_env(self, env):
         if not self.env:

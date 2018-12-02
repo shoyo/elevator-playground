@@ -4,7 +4,6 @@ from sim_utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 
-
 class Building(ABC):
     def __init__(self, num_floors, elevators):
         """
@@ -21,8 +20,6 @@ class Building(ABC):
         self.floor_queues = {}
         for i in range(1, num_floors + 1):
             self.floor_queues[i] = 0
-
-        self.out_pipe = 
 
         self.call_history = []
 
