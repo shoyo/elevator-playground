@@ -1,10 +1,13 @@
 import sys
 import simpy
-from sim_utils import print_status
+from utils import print_status
 
 UP = 1
 DOWN = -1
 IDLE = 0
+
+PICKING_UP = 2
+# consider the case when elevator is picking up, and call is generated on that floor.
 
 
 class Elevator:
@@ -12,11 +15,13 @@ class Elevator:
         self.env = None
         self.id = None
         self.call_queue = None
+        self.call_handler = None
 
         self.curr_floor = 1
         self.dest_floor = None
         self.movement = IDLE
         self.service_direction = IDLE
+        self.action = IDLE
 
         self.max_capacity = capacity
         self.curr_capacity = 0
@@ -48,6 +53,22 @@ class Elevator:
             raise Exception("Attempted to set ID for Elevator which "
                             "already had an ID.")
 
+    def set_call_handler(self):
+        if not self.env:
+            raise Exception("Attempted to assign initial process to an Elevator "
+                            "with no environment.")
+        if self.call_handler:
+            raise Exception("Attempted to assign call_handler to an Elevator "
+                            "that already had an call_handler.")
+        else:
+            self.call_handler = self.env.process(self.handle_calls())
+
+    def handle_calls(self):
+        while True:
+            call = self.call_queue.get()
+            pass
+
+
     def move_to(self, target_floor):
         if target_floor > self.curr_floor:
             self.movement = UP
@@ -67,14 +88,14 @@ class Elevator:
 
     def pick_up(self):
         if self.curr_capacity >= self.max_capacity:
-            raise Exception('Elevator capacity exceeded.')
+            raise Exception("Elevator capacity exceeded.")
         self.curr_capacity += 1
         print_status(self.env.now,
-                     f'(pick up) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}')
+                     f"(pick up) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")
 
     def drop_off(self):
         if self.curr_capacity == 0:
-            raise Exception('Nobody on elevator to drop off')
+            raise Exception("Nobody on elevator to drop off")
         self.curr_capacity -= 1
         print_status(self.env.now,
-                     f'(drop off) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}')
+                     f"(drop off) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")

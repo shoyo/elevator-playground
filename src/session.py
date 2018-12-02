@@ -11,18 +11,19 @@ class Session:
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
             elevator.set_call_queue()
+            elevator.set_call_handler()
         self.building.assign_elevator_ids()
         self.building.set_initial_process()
 
     def run(self):
         if self._valid_session():
-            print('BEGINNING SESSION')
-            print('=================')
+            print("BEGINNING SESSION")
+            print("=================")
             self.env.run(until=self.total_runtime)
-            print('=================')
-            print('ENDING SESSION')
+            print("=================")
+            print("ENDING SESSION")
 
-            print('\nRESULTS:')
+            print("\nRESULTS:")
             self._disp_metrics()
         else:
             raise Exception("Session was not valid. Could not run Session.")
@@ -58,11 +59,11 @@ class Session:
     def _view_state(self):
         """ Method for checking internal state of Session instance.
         For debugging purposes."""
-        print(f'self.env = {self.env}')
-        print(f'self.building = {self.building}')
-        print(f'self.building.elevators = ')
+        print(f"self.env = {self.env}")
+        print(f"self.building = {self.building}")
+        print(f"self.building.elevators = ")
         for elevator in self.building.elevators:
-            print(f'elevator = {elevator}, id = {elevator.id}')
+            print(f"elevator = {elevator}, id = {elevator.id}")
 
     def _disp_metrics(self):
         # TODO: Maybe make this more efficient
@@ -77,8 +78,8 @@ class Session:
                      r.done) / sum(1 for _ in (r for r in self.building.call_history if r.done))
         max_pt = max(r.process_time for r in self.building.call_history if r.done)
 
-        print(f'Average wait time    = {avg_wait / 10} s')
-        print(f'Maximum wait time    = {max_wait / 10} s')
-        print(f'Completion rate      = {completed_invocs}/{len(self.building.call_history)}')
-        print(f'Average process time = {avg_pt / 10} s')
-        print(f'Maximum process time = {max_pt / 10} s')
+        print(f"Average wait time    = {avg_wait / 10} s")
+        print(f"Maximum wait time    = {max_wait / 10} s")
+        print(f"Completion rate      = {completed_invocs}/{len(self.building.call_history)}")
+        print(f"Average process time = {avg_pt / 10} s")
+        print(f"Maximum process time = {max_pt / 10} s")

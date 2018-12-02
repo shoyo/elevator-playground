@@ -18,17 +18,17 @@ def frame_to_time(frames):
     sec = frames % 60
 
     if mins // 10 == 0:
-        mins = '0{}'.format(mins)
+        mins = "0{}".format(mins)
     if sec // 10 == 0:
-        sec = '0{}'.format(sec)
+        sec = "0{}".format(sec)
     if msec // 10 == 0:
-        msec = '0{}'.format(msec)
+        msec = "0{}".format(msec)
 
-    return '{:>4}:{}:{}:{}'.format(hour, mins, sec, msec)
+    return "{:>4}:{}:{}:{}".format(hour, mins, sec, msec)
 
 
 def print_status(time, status):
-    print(f'{frame_to_time(time)} - {status}')
+    print(f"{frame_to_time(time)} - {status}")
 
 
 def id_generator():
@@ -56,6 +56,6 @@ def rand_call(time, floor_upper_bound, floor_lower_bound=1):
     """ Generates a random elevator call at time 'time' from floors between lower and upper bound.
     """
     # TODO: Make floor choice between upper and lower bound dependent on given distribution.
-    # TODO: (ex. upstream/downstream traffic, base floor congestion etc.).
+    # TODO: (ex. uppeak/downpeak traffic, base floor congestion etc.).
     origin, dest = sample([i for i in range(floor_lower_bound, floor_upper_bound + 1)], 2)
     return Call(origin, dest, time)
