@@ -26,6 +26,20 @@ class Elevator:
 
         self.queued_calls = deque()
 
+    def set_env(self, env):
+        if not self.env:
+            self.env = env
+        else:
+            raise Exception("Attempted to set environment for Elevator "
+                            "which already had an environment.")
+
+    def set_id(self, id):
+        if not self.id:
+            self.id = id
+        else:
+            raise Exception("Attempted to set ID for Elevator which "
+                            "already had an ID.")
+
     def move_to(self, target_floor):
         if target_floor > self.curr_floor:
             self.movement = UP

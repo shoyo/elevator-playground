@@ -4,33 +4,53 @@ from sim_utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 
+
 class Building(ABC):
     def __init__(self, num_floors, elevators):
         """
         :param int num_floors: number of floors
-        :param list[Elevator] elevators: list of elevator instances
+        :param list[Elevator] elevators: all Elevators in this Building
         """
         self.env = None
-        self.process = None
+        self.start_process = None
 
         self.num_floors = num_floors
-        self.num_elevators = len(elevators)
         self.elevators = elevators
+        self.num_elevators = len(elevators)
 
-        # Map of floor to length of respective queue
         self.floor_queues = {}
         for i in range(1, num_floors + 1):
             self.floor_queues[i] = 0
 
-        # ID assignment to each elevator
-        for i in range(self.num_elevators):
-            self.elevators[i].id = i + 1
+        self.out_pipe = 
 
-        self.all_calls = []
+        self.call_history = []
+
+
+
+
+# wrong place
+    # TODO: RENAME THIS METHOD AND FIND AN APPROPRIATE PLACE TO PUT IT
+    def start_process(self):
+        if not self.env:
+            raise Exception("Attempted to assign start_process to a Building "
+                            "with no environment.")
+        if not self.start_process:
+            raise Exception("Attempted to assign start_process to a Building "
+                            "that already had a start_process.")
+        self.start_process = self.env.process(self.start())
 
     def set_env(self, env):
-        self.env = env
-        self.process = env.process(self.start())
+        if not self.env:
+            self.env = env
+        else:
+            raise Exception("Attempted to set environment for Building "
+                            "which already had an environment.")
+
+    def assign_elevator_ids(self):
+        for i in range(self.num_elevators):
+            self.elevators[i].set_id(i + 1)
+
 
     def update_floor_queues(self):
         pass
@@ -69,6 +89,10 @@ class BasicBuilding(Building):
              and wait for a call (or potentially move to another floor deemed more
              effective)
     """
+    # def __init__(self, num_floors, elevators):
+    #     super().__init__(num_floors, elevators)
+    #     self.dispatcher = BasicDispatcher()
+    #     self.dispatcher.start()
 
     def start(self):
         while True:
@@ -82,7 +106,7 @@ class BasicBuilding(Building):
         call = rand_call(self.env.now, self.num_floors)
         print_status(self.env.now, f'[Generate] call {call.id}: floor {call.origin} to {call.dest}')
         self.floor_queues[call.origin] += 1
-        self.all_calls.append(call)
+        self.call_history.append(call)
         return call
 
     def select_elevator(self, call):
