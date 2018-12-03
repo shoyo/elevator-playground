@@ -47,7 +47,8 @@ class Building(ABC):
 
     def set_call_generator(self):
         if not self.env:
-            raise Exception("Attempted to assign initial process to a Building " "with no environment.")
+            raise Exception("Attempted to assign initial process to a Building "
+                            "with no environment.")
         if self.call_generator:
             raise Exception("Attempted to assign call_generator to a Building "
                             "that already had an call_generator.")
@@ -71,52 +72,31 @@ class Building(ABC):
     @abstractmethod
     def generate_calls(self):
         """ Periodically generates a call from an origin floor to a
-        destination floor."""
+        destination floor. """
 
     @abstractmethod
     def generate_single_call(self):
-        """ Generates a single call."""
+        """ Generates a single call. """
         pass
 
     @abstractmethod
     def process_calls(self):
-        """ Continuously check call buffer for any queued calls and process them."""
+        """ Continuously check call buffer for any queued calls and process them. """
         pass
 
     @abstractmethod
     def process_single_call(self, call, elevator):
-        """ Process a single call given an elevator."""
+        """ Process a single call given an elevator. """
         pass
 
     @abstractmethod
     def select_elevator(self, call):
-        """ Judiciously selects an elevator to handle a generated call."""
+        """ Judiciously selects an elevator to handle a generated call. """
         pass
 
 
 class BasicBuilding(Building):
-    """
-    A building with a basic dispatcher.
-
-    Dispatches elevator calls according to basic elevator algorithm (SCAN):
-         1) While there are people in the elevator or people waiting in the
-             direction of the elevator, keep heading in that direction and
-             pickup/dropoff as necessary.
-         2) Once elevator has exhausted all requests in its current direction,
-             reverse direction and go to step 1) if there are requests. Else, stop
-             and wait for a call (or potentially move to another floor deemed more
-             effective)
-    """
-
-    # TODO: DEPRECATING
-    def run(self):
-        while True:
-            # TODO: handle specified distribution instead of simple random
-            yield self.env.timeout(randint(30, 30))
-            call = self.generate_single_call()
-
-            elevator = self.select_elevator(call)
-            self.process_call(call, elevator)
+    """ A building with a basic dispatcher. """
 
     def generate_calls(self):
         while True:

@@ -11,6 +11,16 @@ PICKING_UP = 2
 
 
 class Elevator:
+    """
+    Each elevator follows the SCAN algorithm.
+    1) While there are people in the elevator or people waiting in the
+       direction of the elevator, keep heading in that direction and
+       pickup/dropoff as necessary.
+    2) Once elevator has exhausted all requests in its current direction,
+       reverse direction and go to step 1) if there are requests. Else, stop
+       and wait for a call (or potentially move to another floor deemed more
+       effective)
+    """
     def __init__(self, capacity):
         self.env = None
         self.id = None
@@ -55,19 +65,20 @@ class Elevator:
 
     def set_call_handler(self):
         if not self.env:
-            raise Exception("Attempted to assign initial process to an Elevator "
+            raise Exception("Attempted to assign call_handler to an Elevator "
                             "with no environment.")
         if self.call_handler:
             raise Exception("Attempted to assign call_handler to an Elevator "
                             "that already had an call_handler.")
         else:
-            self.call_handler = self.env.process(self.handle_calls())
+            self.call_handler = self.envj.process(self.handle_calls())
 
     def handle_calls(self):
         while True:
             call = self.call_queue.get()
-            pass
+            if
 
+            pass
 
     def move_to(self, target_floor):
         if target_floor > self.curr_floor:
@@ -77,6 +88,7 @@ class Elevator:
         while self.curr_floor != target_floor:
             self.env.run(self.env.process(self._move_one_floor()))
             self.curr_floor += self.movement
+
         self.movement = IDLE
 
     def _move_one_floor(self):

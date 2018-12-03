@@ -58,7 +58,7 @@ class Session:
 
     def _view_state(self):
         """ Method for checking internal state of Session instance.
-        For debugging purposes."""
+        For debugging purposes. """
         print(f"self.env = {self.env}")
         print(f"self.building = {self.building}")
         print(f"self.building.elevators = ")
