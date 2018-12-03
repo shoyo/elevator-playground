@@ -1,6 +1,6 @@
 import simpy
 from random import randint
-from .utils import print_status, rand_call
+from utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 
@@ -119,7 +119,11 @@ class BasicBuilding(Building):
             elevator.call_queue.put(call)
 
     def _process_single_call(self, call, elevator):
-        elevator.call_queue.put(call)
+        # elevator.call_queue.put(call)
+        # prev ---------------
+
+        # invoke elevator to check itself
+        elevator.handle_call(call)
 
     def _select_elevator(self, call):
         # I probably want an efficient way of checking an "elevators status" -- where each

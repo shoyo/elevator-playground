@@ -1,6 +1,6 @@
 import sys
 import simpy
-from .utils import print_status
+from utils import print_status
 
 UP = 1
 DOWN = -1
@@ -31,7 +31,7 @@ class Elevator:
         self.dest_floor = None
         self.movement = IDLE
         self.service_direction = IDLE
-        self.action = IDLE
+        # self.action = IDLE
 
         self.max_capacity = capacity
         self.curr_capacity = 0
@@ -78,6 +78,39 @@ class Elevator:
             call = self.call_queue.get()
 
             pass
+
+    def handle_call(self, call):
+        call_direction = call.origin - self.curr_floor
+        if self.movement == IDLE:
+            self._start_moving(call)
+            pass
+        else:
+            if call_direction == self.movement:
+                # continue in current direction and pick up this call
+                pass
+            else:
+                # put the call on hold until all calls in current direction are done
+                pass
+
+    def process_call_or_something(self, call):
+        # movement and pickup/dropoff logic
+        # ...
+        self._go_idle()
+
+    def _start_moving(self, invoking_call):
+        call_direction = invoking_call.origin - self.curr_floor
+        self.movement = call_direction
+        self.service_direction = call_direction
+        self.dest_floor = invoking_call.origin
+        print_status(self.env.now, f"Elevator {self.id} has starting moving"
+                                   f"for call {invoking_call.id}")
+
+    def _go_idle(self):
+        self.movement = IDLE
+        self.service_direction = IDLE
+        self.dest_floor = None
+        print_status(self.env.now, f"Elevator {self.id} is going idle at floor"
+                                   f" {self.curr_floor}")
 
     def _move_to(self, target_floor):
         if target_floor > self.curr_floor:
