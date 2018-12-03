@@ -1,6 +1,6 @@
 import simpy
 from random import randint
-from utils import print_status, rand_call
+from .utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 
@@ -53,7 +53,7 @@ class Building(ABC):
             raise Exception("Attempted to assign call_generator to a Building "
                             "that already had an call_generator.")
         else:
-            self.call_generator = self.env.process(self.generate_calls())
+            self.call_generator = self.env.process(self._generate_calls())
 
     def set_call_processor(self):
         if not self.env:
@@ -63,34 +63,34 @@ class Building(ABC):
             raise Exception("Attempted to assign call_processor to a Building "
                             "that already had an call_processor.")
         else:
-            self.call_processor = self.env.process(self.process_calls())
+            self.call_processor = self.env.process(self._process_calls())
 
     def assign_elevator_ids(self):
         for i in range(self.num_elevators):
             self.elevators[i].set_id(i)
 
     @abstractmethod
-    def generate_calls(self):
+    def _generate_calls(self):
         """ Periodically generates a call from an origin floor to a
         destination floor. """
 
     @abstractmethod
-    def generate_single_call(self):
+    def _generate_single_call(self):
         """ Generates a single call. """
         pass
 
     @abstractmethod
-    def process_calls(self):
+    def _process_calls(self):
         """ Continuously check call buffer for any queued calls and process them. """
         pass
 
     @abstractmethod
-    def process_single_call(self, call, elevator):
+    def _process_single_call(self, call, elevator):
         """ Process a single call given an elevator. """
         pass
 
     @abstractmethod
-    def select_elevator(self, call):
+    def _select_elevator(self, call):
         """ Judiciously selects an elevator to handle a generated call. """
         pass
 
@@ -98,30 +98,30 @@ class Building(ABC):
 class BasicBuilding(Building):
     """ A building with a basic dispatcher. """
 
-    def generate_calls(self):
+    def _generate_calls(self):
         while True:
             yield self.env.timeout(randint(30, 30))
-            call = self.generate_single_call()
+            call = self._generate_single_call()
             self.call_buffer.put(call)
             self.call_history.append(call)
             self.floor_queues[call.origin] += 1
 
-    def generate_single_call(self):
+    def _generate_single_call(self):
         call = rand_call(self.env.now, self.num_floors)
         print_status(self.env.now, f"[Generate] call {call.id}: floor {call.origin} to {call.dest}")
         return call
 
-    def process_calls(self):
+    def _process_calls(self):
         while True:
             call = yield self.call_buffer.get()
-            elevator = self.select_elevator(call)
-            self.process_single_call(call, elevator)
+            elevator = self._select_elevator(call)
+            self._process_single_call(call, elevator)
             elevator.call_queue.put(call)
 
-    def process_single_call(self, call, elevator):
+    def _process_single_call(self, call, elevator):
         elevator.call_queue.put(call)
 
-    def select_elevator(self, call):
+    def _select_elevator(self, call):
         # I probably want an efficient way of checking an "elevators status" -- where each
         # elevator is, where they're headed, their capacities etc.
         # Ultimately, this method is the bulk of the thinking
@@ -131,7 +131,7 @@ class BasicBuilding(Building):
         return selected
 
     # TODO: DEPRECATING
-    def process_call(self, call, elevator):
+    def _process_call(self, call, elevator):
         # After call is processed, the following must be updated
         #    wait time, process time, "done"
 

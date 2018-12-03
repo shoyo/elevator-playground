@@ -2,3 +2,4 @@
 .idea
 src/__pycache__
 src/.DS_Store
+tests/__pycache__

@@ -1,6 +1,6 @@
 import sys
 import simpy
-from utils import print_status
+from .utils import print_status
 
 UP = 1
 DOWN = -1
@@ -71,16 +71,15 @@ class Elevator:
             raise Exception("Attempted to assign call_handler to an Elevator "
                             "that already had an call_handler.")
         else:
-            self.call_handler = self.envj.process(self.handle_calls())
+            self.call_handler = self.env.process(self._handle_calls())
 
-    def handle_calls(self):
+    def _handle_calls(self):
         while True:
             call = self.call_queue.get()
-            if
 
             pass
 
-    def move_to(self, target_floor):
+    def _move_to(self, target_floor):
         if target_floor > self.curr_floor:
             self.movement = UP
         elif target_floor < self.curr_floor:
@@ -98,14 +97,14 @@ class Elevator:
             print("Elevator movement was interrupted. Exiting for now...")
             sys.exit()
 
-    def pick_up(self):
+    def _pick_up(self):
         if self.curr_capacity >= self.max_capacity:
             raise Exception("Elevator capacity exceeded.")
         self.curr_capacity += 1
         print_status(self.env.now,
                      f"(pick up) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")
 
-    def drop_off(self):
+    def _drop_off(self):
         if self.curr_capacity == 0:
             raise Exception("Nobody on elevator to drop off")
         self.curr_capacity -= 1
