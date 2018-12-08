@@ -1,6 +1,6 @@
 import sys
 import simpy
-from utils import print_status
+from src.utils import print_status
 
 UP = 1
 DOWN = -1
@@ -74,6 +74,8 @@ class Elevator:
             self.call_handler = self.env.process(self._handle_calls())
 
     def _handle_calls(self):
+        # Maybe no need for asynchronous pipe between buildings-elevator, just have the
+        # building invoke a method any time it generates a call.
         while True:
             call = self.call_queue.get()
 
@@ -91,6 +93,7 @@ class Elevator:
             else:
                 # put the call on hold until all calls in current direction are done
                 pass
+
 
     def process_call_or_something(self, call):
         # movement and pickup/dropoff logic

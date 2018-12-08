@@ -1,6 +1,6 @@
-from elevators import Elevator
-from buildings import BasicBuilding
-from session import Session
+from src.elevators import Elevator
+from src.buildings import BasicBuilding
+from src.session import Session
 import random
 
 RANDOM_SEED = 1

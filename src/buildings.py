@@ -1,6 +1,6 @@
 import simpy
 from random import randint
-from utils import print_status, rand_call
+from src.utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 
