@@ -1,6 +1,6 @@
 import sys
 import simpy
-from src.utils import print_status
+from utils import print_status
 
 UP = 1
 DOWN = -1
@@ -74,15 +74,17 @@ class Elevator:
             self.call_handler = self.env.process(self._handle_calls())
 
     def _handle_calls(self):
-        # Maybe no need for asynchronous pipe between buildings-elevator, just have the
-        # building invoke a method any time it generates a call.
-        while True:
-            call = self.call_queue.get()
-
-            pass
+        """ Main function for individual elevator operation. Follows the basic
+         elevator algorithm, and is re-calibrates action every time a call is
+         placed in the call_queue."""
+        try:
+            while len(self.call_queue.items) > 0:
+                call = self.call_queue.get()
+                pass
+        except simpy.Interrupt:
+            self.recalibrate()
 
     def handle_call(self, call):
-        call_direction = call.origin - self.curr_floor
         if self.movement == IDLE:
             self._start_moving(call)
             pass

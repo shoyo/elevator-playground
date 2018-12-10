@@ -1,6 +1,6 @@
 import simpy
 from random import randint
-from src.utils import print_status, rand_call
+from utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 
@@ -122,7 +122,7 @@ class BasicBuilding(Building):
         # elevator.call_queue.put(call)
         # prev ---------------
 
-        # invoke elevator to check itself
+        # invoke elevator to check itself instead of putting generated call into pipe
         elevator.handle_call(call)
 
     def _select_elevator(self, call):
@@ -136,9 +136,6 @@ class BasicBuilding(Building):
 
     # TODO: DEPRECATING
     def _process_call(self, call, elevator):
-        # After call is processed, the following must be updated
-        #    wait time, process time, "done"
-
         elevator.move_to(call.origin)
         elevator.pick_up()
         call.wait_time = self.env.now - call.orig_time
