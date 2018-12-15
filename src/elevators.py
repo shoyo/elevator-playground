@@ -12,14 +12,25 @@ PICKING_UP = 2
 
 class Elevator:
     """
-    Each elevator follows the SCAN algorithm.
-    1) While there are people in the elevator or people waiting in the
-       direction of the elevator, keep heading in that direction and
+    Elevator class. Responsible for handling calls assigned to it by its
+    Building.
+
+    This Elevator maintains 2 queues: a currently-serving queue and on-hold
+    queue. The former contains all calls in the current direction of travel,
+    and the latter contains all calls in the opposite direction.
+
+    Whenever this Elevator is assigned a call, its recalibration process is
+    invoked. This Elevator then determines whether to put the call into its
+    currently-serving queue or on-hold queue. The Elevator then proceeds to
+    handle calls with the algorithm described below.
+
+    Each elevator follows the SCAN algorithm:
+    1) While there are people in the elevator or calls waiting in the
+       current service direction, keep heading in that direction and
        pickup/dropoff as necessary.
-    2) Once elevator has exhausted all requests in its current direction,
-       reverse direction and go to step 1) if there are requests. Else, stop
-       and wait for a call (or potentially move to another floor deemed more
-       effective)
+    2) Once the elevator has serviced all calls in its current direction,
+       reverse direction and go to step (1) if there are requests. Else, stop
+       and wait for a call (or move to another floor deemed more effective)
     """
     def __init__(self, capacity):
         self.env = None
@@ -69,7 +80,7 @@ class Elevator:
                             "with no environment.")
         if self.call_handler:
             raise Exception("Attempted to assign call_handler to an Elevator "
-                            "that already had an call_handler.")
+                            "that already had a call_handler.")
         else:
             self.call_handler = self.env.process(self._handle_calls())
 
@@ -78,9 +89,9 @@ class Elevator:
          elevator algorithm, and is re-calibrates action every time a call is
          placed in the call_queue."""
         try:
-            while len(self.call_queue.items) > 0:
+            while True:
                 call = self.call_queue.get()
-                pass
+                self.calibrate(call)
         except simpy.Interrupt:
             self.recalibrate()
 

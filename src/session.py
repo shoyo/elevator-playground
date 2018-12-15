@@ -2,6 +2,10 @@ import simpy
 
 
 class Session:
+    """
+    Responsible for setting up simulation environment for a Building
+    containing Elevator(s) and calculating simulation results.
+    """
     def __init__(self, building, runtime=36000):
         self.building = building
         self.total_runtime = runtime

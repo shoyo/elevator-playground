@@ -5,6 +5,13 @@ from abc import ABC, abstractmethod
 
 
 class Building(ABC):
+    """
+    Building class. Responsible for generating random elevator calls and
+    assigning them to appropriate Elevator given its strategy.
+
+    Contains a call-generating process and a call-handling process, both of
+    which asynchronously put/get calls respectively to the call queue.
+    """
     def __init__(self, num_floors, elevators):
         """
         :param int num_floors: number of floors
@@ -12,8 +19,8 @@ class Building(ABC):
         """
         self.env = None
         self.call_generator = None
-        self.call_processor = None
-        self.call_buffer = None
+        self.call_handler = None
+        self.call_queue = None
         self.call_history = []
 
         self.num_floors = num_floors
@@ -35,15 +42,15 @@ class Building(ABC):
         else:
             self.env = env
 
-    def set_call_buffer(self):
+    def set_call_queue(self):
         if not self.env:
             raise Exception("Attempted to set call_queue for Elevator "
                             "with no environment.")
-        if self.call_buffer:
+        if self.call_queue:
             raise Exception("Attempted to set call_queue for Elevator "
                             "that already had a call_queue.")
         else:
-            self.call_buffer = simpy.Store(self.env)
+            self.call_queue = simpy.Store(self.env)
 
     def set_call_generator(self):
         if not self.env:
@@ -59,11 +66,11 @@ class Building(ABC):
         if not self.env:
             raise Exception("Attempted to assign initial process to a Building "
                             "with no environment.")
-        if self.call_processor:
+        if self.call_handler:
             raise Exception("Attempted to assign call_processor to a Building "
                             "that already had an call_processor.")
         else:
-            self.call_processor = self.env.process(self._process_calls())
+            self.call_handler = self.env.process(self._process_calls())
 
     def assign_elevator_ids(self):
         for i in range(self.num_elevators):
@@ -71,8 +78,8 @@ class Building(ABC):
 
     @abstractmethod
     def _generate_calls(self):
-        """ Periodically generates a call from an origin floor to a
-        destination floor. """
+        """ Periodically generates a random call from an origin floor to a
+        destination floor and places call into the call queue. """
 
     @abstractmethod
     def _generate_single_call(self):
@@ -81,7 +88,7 @@ class Building(ABC):
 
     @abstractmethod
     def _process_calls(self):
-        """ Continuously check call buffer for any queued calls and process them. """
+        """ Periodically check the call queue for any queued calls and process them. """
         pass
 
     @abstractmethod
@@ -102,7 +109,7 @@ class BasicBuilding(Building):
         while True:
             yield self.env.timeout(randint(30, 30))
             call = self._generate_single_call()
-            self.call_buffer.put(call)
+            self.call_queue.put(call)
             self.call_history.append(call)
             self.floor_queues[call.origin] += 1
 
@@ -113,7 +120,7 @@ class BasicBuilding(Building):
 
     def _process_calls(self):
         while True:
-            call = yield self.call_buffer.get()
+            call = yield self.call_queue.get()
             elevator = self._select_elevator(call)
             self._process_single_call(call, elevator)
             elevator.call_queue.put(call)
