@@ -16,7 +16,7 @@ class Session:
         self.building.set_call_queue()
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
-            elevator.set_call_handler()
+            elevator.set_call_servicer()
         self.building.assign_elevator_ids()
 
     def run(self):
@@ -26,7 +26,6 @@ class Session:
             self.env.run(until=self.total_runtime)
             print("=================")
             print("ENDING SESSION")
-
             # print("\nRESULTS:")
             # self._disp_metrics()
         else:
@@ -57,6 +56,9 @@ class Session:
         for elevator in self.building.elevators:
             if not elevator.env or elevator.id is None:
                 print("An Elevator does not have an environment or ID.")
+                return False
+            if not elevator.service_range:
+                print("An Elevator does not have a service range.")
                 return False
         return True
 

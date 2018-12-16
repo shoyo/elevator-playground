@@ -1,3 +1,5 @@
+import sys
+
 import simpy
 from random import randint
 from utils import print_status, rand_call
@@ -23,6 +25,9 @@ class Building(ABC):
         self.call_queue = None
         self.call_history = []
 
+        if num_floors < 1:
+            print("Building was initialized with less than 1 floor.")
+            sys.exit(1)
         self.num_floors = num_floors
         self.elevators = elevators
         self.num_elevators = len(elevators)
@@ -33,7 +38,9 @@ class Building(ABC):
 
         self.service_ranges = {}
         for i in range(len(elevators)):
-            self.service_ranges[elevators[i]] = (1, self.num_floors)
+            service_range = (1, self.num_floors)
+            self.service_ranges[elevators[i]] = service_range
+            self.elevators[i].set_service_range(service_range)
 
     def set_env(self, env):
         if self.env:
