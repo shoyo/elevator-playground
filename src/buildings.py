@@ -62,15 +62,15 @@ class Building(ABC):
         else:
             self.call_generator = self.env.process(self._generate_calls())
 
-    def set_call_processor(self):
+    def set_call_handler(self):
         if not self.env:
             raise Exception("Attempted to assign initial process to a Building "
                             "with no environment.")
         if self.call_handler:
-            raise Exception("Attempted to assign call_processor to a Building "
-                            "that already had an call_processor.")
+            raise Exception("Attempted to assign call_handler to a Building "
+                            "that already had an call_handler.")
         else:
-            self.call_handler = self.env.process(self._process_calls())
+            self.call_handler = self.env.process(self._handle_calls())
 
     def assign_elevator_ids(self):
         for i in range(self.num_elevators):
@@ -87,12 +87,12 @@ class Building(ABC):
         pass
 
     @abstractmethod
-    def _process_calls(self):
+    def _handle_calls(self):
         """ Periodically check the call queue for any queued calls and process them. """
         pass
 
     @abstractmethod
-    def _process_single_call(self, call, elevator):
+    def _delegate_single_call(self, call, elevator):
         """ Process a single call given an elevator. """
         pass
 
@@ -118,22 +118,17 @@ class BasicBuilding(Building):
         print_status(self.env.now, f"[Generate] call {call.id}: floor {call.origin} to {call.dest}")
         return call
 
-    def _process_calls(self):
+    def _handle_calls(self):
         while True:
             call = yield self.call_queue.get()
             elevator = self._select_elevator(call)
-            self._process_single_call(call, elevator)
-            elevator.call_queue.put(call)
+            self._delegate_single_call(call, elevator)
 
-    def _process_single_call(self, call, elevator):
-        # elevator.call_queue.put(call)
-        # prev ---------------
-
-        # invoke elevator to check itself instead of putting generated call into pipe
+    def _delegate_single_call(self, call, elevator):
         elevator.handle_call(call)
 
     def _select_elevator(self, call):
-        # I probably want an efficient way of checking an "elevators status" -- where each
+        # I probably want an efficient way of checking global state -- where each
         # elevator is, where they're headed, their capacities etc.
         # Ultimately, this method is the bulk of the thinking
         selected = self.elevators[randint(0, self.num_elevators - 1)]

@@ -1,19 +1,44 @@
 import sys
+
 import simpy
-from utils import print_status
+from utils import print_status, UP, DOWN, IDLE
 
-UP = 1
-DOWN = -1
-IDLE = 0
 
-PICKING_UP = 2
-# consider the case when elevator is picking up, and call is generated on that floor.
+class ServiceMap:
+    """
+    Used by Elevator. Maps floors that require service with their corresponding
+    calls. Calls are classified according to whether they require a pick-up or
+    drop-off.
+    """
+
+    def __init__(self):
+        self.pickups = {}
+        self.dropoffs = {}
+
+    def __getitem__(self, floor_num):
+        """
+        >>> service_map = ServiceMap()
+        >>> service_map[5]
+        Returns a dictionary where keys ["pickup"] and ["dropoff"] map
+        to all the calls that require pick-up/drop-off on floor 5,
+        respectively.
+        """
+        return {"pickup": self.pickups[floor_num], "dropoff": self.dropoffs[floor_num]}
+
+    def requires_service(self, floor_num):
+        """
+        >>> service_map = ServiceMap()
+        >>> service_map.requires_service(3)
+        Returns a boolean denoting whether floor 3 requires the Elevator to stop
+        and pick-up or drop-off.
+        """
+        return self.pickups[floor_num] or self.dropoffs[floor_num]
 
 
 class Elevator:
     """
     Elevator class. Responsible for handling calls assigned to it by its
-    Building.
+    Building. Continuously serves calls while there are calls to be served.
 
     This Elevator maintains 2 queues: a currently-serving queue and on-hold
     queue. The former contains all calls in the current direction of travel,
@@ -32,18 +57,19 @@ class Elevator:
        reverse direction and go to step (1) if there are requests. Else, stop
        and wait for a call (or move to another floor deemed more effective)
     """
-    def __init__(self, capacity):
+
+    def __init__(self, capacity=simpy.core.Infinity):
         self.env = None
         self.id = None
-        self.call_queue = None
+
         self.call_handler = None
+        self.currently_serving = ServiceMap()
+        self.on_hold = ServiceMap()
 
         self.curr_floor = 1
         self.dest_floor = None
         self.movement = IDLE
         self.service_direction = IDLE
-        # self.action = IDLE
-
         self.max_capacity = capacity
         self.curr_capacity = 0
         self.pickup_duration = 70
@@ -56,16 +82,6 @@ class Elevator:
                             "which already had an environment.")
         else:
             self.env = env
-
-    def set_call_queue(self):
-        if not self.env:
-            raise Exception("Attempted to set call_queue for Elevator "
-                            "with no environment.")
-        if self.call_queue:
-            raise Exception("Attempted to set call_queue for Elevator "
-                            "that already had a call_queue.")
-        else:
-            self.call_queue = simpy.Store(self.env)
 
     def set_id(self, id):
         if not self.id:
@@ -85,28 +101,51 @@ class Elevator:
             self.call_handler = self.env.process(self._handle_calls())
 
     def _handle_calls(self):
-        """ Main function for individual elevator operation. Follows the basic
-         elevator algorithm, and is re-calibrates action every time a call is
-         placed in the call_queue."""
-        try:
-            while True:
-                call = self.call_queue.get()
-                self.calibrate(call)
-        except simpy.Interrupt:
-            self.recalibrate()
+        """ Continuously serves calls while there are calls to be served. """
+        while True:
+            try:
+                print(f"Elevator {self.id} is handling calls...")
+                yield self.env.timeout(3)
+                # while self.currently_serving:
+                #     # go to next target floor
+                #     # pick up people that are waiting on that floor
+                #     # drop off people that want to get off on that floor
+                #     # remove served calls/ update currently_serving
+                #     # update global state
+                #     # if elevator is at building boundary and there are still
+                #     #   calls that haven't been served, raise error and quit.
+                #     # repeat
+                # if not self.on_hold:
+                #     # go idle OR go to a designated waiting floor
+                # else:
+                #     self.currently_serving = self.on_hold
+                #     # switch service direction
+                #     # update global state
+
+            except simpy.Interrupt:
+                print(f"Elevator {self.id} call-handling was interrupted.")
+                pass
 
     def handle_call(self, call):
-        if self.movement == IDLE:
-            self._start_moving(call)
-            pass
-        else:
-            if call_direction == self.movement:
-                # continue in current direction and pick up this call
-                pass
-            else:
-                # put the call on hold until all calls in current direction are done
-                pass
+        """
+        Main interface with Elevator for receiving assigned calls.
+        """
+        self.call_handler.interrupt()
+        self._recalibrate(call)
 
+    def _recalibrate(self, call):
+        """ Given a call, determines whether to service it right away or
+        put it on hold. """
+        print("recalibrate() was called!")
+        if call.direction == self.service_direction:
+            if self.service_direction > 0 and call.origin > self.curr_floor:
+                self.currently_serving[call.origin] +=
+            elif self.service_direction < 0 and call.origin < self.curr_floor:
+                serve
+        else:
+            put
+            on
+            hold
 
     def process_call_or_something(self, call):
         # movement and pickup/dropoff logic
@@ -133,18 +172,17 @@ class Elevator:
             self.movement = UP
         elif target_floor < self.curr_floor:
             self.movement = DOWN
-        while self.curr_floor != target_floor:
-            self.env.run(self.env.process(self._move_one_floor()))
-            self.curr_floor += self.movement
-
+        try:
+            while self.curr_floor != target_floor:
+                self.env.run(self.env.process(self._move_one_floor()))
+                self.curr_floor += self.movement
+        except simpy.Interrupt:
+            print("Elevator _move_to() was interrupted.")
+            sys.exit(1)
         self.movement = IDLE
 
     def _move_one_floor(self):
-        try:
-            yield self.env.timeout(self.f2f_time)
-        except simpy.Interrupt:
-            print("Elevator movement was interrupted. Exiting for now...")
-            sys.exit()
+        yield self.env.timeout(self.f2f_time)
 
     def _pick_up(self):
         if self.curr_capacity >= self.max_capacity:

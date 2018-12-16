@@ -1,3 +1,4 @@
+import sys
 from random import sample
 
 
@@ -40,12 +41,23 @@ def id_generator():
 
 id_gen = id_generator()
 
+UP = 1
+DOWN = -1
+IDLE = 0
+
 
 class Call:
     def __init__(self, origin, destination, time):
         self.id = next(id_gen)
         self.origin = origin
         self.dest = destination
+        if self.dest - self.origin > 0:
+            self.direction = UP
+        elif self.dest - self.origin < 0:
+            self.direction = DOWN
+        else:
+            print("A call was generated with the same origin and destination.")
+            sys.exit(1)
         self.orig_time = time
         self.wait_time = None
         self.process_time = None
@@ -53,7 +65,8 @@ class Call:
 
 
 def rand_call(time, floor_upper_bound, floor_lower_bound=1):
-    """ Generates a random elevator call at time 'time' from floors between lower and upper bound.
+    """
+    Generates a random elevator call at time 'time' from floors between lower and upper bound.
     """
     # TODO: Make floor choice between upper and lower bound dependent on given distribution.
     # TODO: (ex. uppeak/downpeak traffic, base floor congestion etc.).

@@ -11,13 +11,13 @@ class Session:
         self.total_runtime = runtime
         self.env = simpy.Environment()
         self.building.set_env(self.env)
-        self.building.set_call_buffer()
+        self.building.set_call_generator()
+        self.building.set_call_handler()
+        self.building.set_call_queue()
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
-            elevator.set_call_queue()
             elevator.set_call_handler()
         self.building.assign_elevator_ids()
-        self.building.set_initial_process()
 
     def run(self):
         if self._valid_session():
@@ -27,8 +27,8 @@ class Session:
             print("=================")
             print("ENDING SESSION")
 
-            print("\nRESULTS:")
-            self._disp_metrics()
+            # print("\nRESULTS:")
+            # self._disp_metrics()
         else:
             raise Exception("Session was not valid. Could not run Session.")
 
@@ -45,18 +45,18 @@ class Session:
         if not self.building.env:
             print("Building does not have an environment.")
             return False
-        if not self.building.call_buffer:
-            print("Building does not have a call buffer.")
+        if not self.building.call_queue:
+            print("Building does not have a call queue.")
             return False
-        if not self.building.call_generator or not self.building.call_processor:
-            print("Building does not have a call generator or processor.")
+        if not self.building.call_generator or not self.building.call_handler:
+            print("Building does not have a call generator or handler.")
             return False
         if not self.building.elevators:
             print("Building does not have elevators.")
             return False
         for elevator in self.building.elevators:
-            if not elevator.env or elevator.id is None or not elevator.call_queue:
-                print("An Elevator does not have an environment or ID or call queue.")
+            if not elevator.env or elevator.id is None:
+                print("An Elevator does not have an environment or ID.")
                 return False
         return True
 
@@ -73,8 +73,7 @@ class Session:
         # TODO: Maybe make this more efficient
         total_wait = sum(r.wait_time for r in self.building.call_history if
                          r.done)
-        avg_wait = total_wait / sum(1 for _ in (r for r in
-                                                self.building.call_history if r.done))
+        avg_wait = total_wait / sum(1 for _ in (r for r in self.building.call_history if r.done))
         max_wait = max(r.wait_time for r in self.building.call_history if r.done)
         completed_invocs = sum(1 for _ in (r for r in self.building.call_history if
                                            r.done))

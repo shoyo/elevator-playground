@@ -9,9 +9,7 @@ RANDOM_SEED = 1
 def run_simulation():
     random.seed(RANDOM_SEED)
     elevators = [
-        Elevator(15),
-        Elevator(15),
-        Elevator(15),
+        Elevator(),
     ]
     building = BasicBuilding(10, elevators)
     session = Session(building, 36000)
