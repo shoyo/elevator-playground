@@ -11,28 +11,64 @@ class ServiceMap:
     drop-off.
     """
 
-    def __init__(self):
+    def __init__(self, service_range):
         self.pickups = {}
         self.dropoffs = {}
+        self.service_range = service_range
 
-    def __getitem__(self, floor_num):
+    def __getitem__(self, floor):
         """
-        >>> service_map = ServiceMap()
-        >>> service_map[5]
         Returns a dictionary where keys ["pickup"] and ["dropoff"] map
-        to all the calls that require pick-up/drop-off on floor 5,
-        respectively.
+        to all the calls that require pick-up/drop-off on given floor,
+        respectively. Note it returns a copy of data; editing returned
+        dictionary will NOT change ServiceMap instance.
         """
-        return {"pickup": self.pickups[floor_num], "dropoff": self.dropoffs[floor_num]}
+        if not self._inrange(floor):
+            raise Exception("Attempted to get a ServiceMap for a floor "
+                            "outside of service range.")
+        else:
+            return {
+                "pickup": self.pickups[floor],
+                "dropoff": self.dropoffs[floor]
+            }
 
-    def service_required(self, floor_num):
+    def set_pickup(self, call):
+        if not self._inrange(call.origin):
+            raise Exception("Attempted to give ServiceMap a pick-up call "
+                            "for a floor outside of service range.")
+        else:
+            self.pickups[call.origin] = call
+
+    def set_dropoff(self, call):
+        if not self._inrange(call.dest):
+            raise Exception("Attempted to give ServiceMap a drop-off call "
+                            "for a floor outside of service range.")
+        else:
+            self.dropoffs[call.dest] = call
+
+    def next_stop(self, curr_floor, direction):
         """
-        >>> service_map = ServiceMap()
-        >>> service_map.service_required(3)
-        Returns a boolean denoting whether floor 3 requires the Elevator to stop
-        to pick-up or drop-off.
+        Returns the next floor in the direction of travel that requires
+        service if one exists. Returns None otherwise. """
+        while True:
+            next_floor = curr_floor + direction
+            if not self._inrange(next_floor):
+                return None
+            if self._service_required(next_floor):
+                return next_floor
+
+    def _service_required(self, floor_num):
+        """
+        Returns a boolean denoting whether floor floor_num requires the
+        Elevator to stop to pick-up or drop-off.
         """
         return self.pickups[floor_num] or self.dropoffs[floor_num]
+
+    def _inrange(self, floor):
+        """
+        Returns whether floor is within service range.
+        """
+        return self.service_range[0] < floor < self.service_range[1]
 
 
 class Elevator:
@@ -63,8 +99,8 @@ class Elevator:
         self.id = None
 
         self.call_handler = None
-        self.active_map = ServiceMap()
-        self.defer_map = ServiceMap()
+        self.active_map = None
+        self.defer_map = None
 
         self.curr_floor = 1
         self.dest_floor = None
@@ -79,6 +115,14 @@ class Elevator:
         self.service_range = None
         self.upper_bound = None
         self.lower_bound = None
+
+    def init_service_maps(self):
+        if not self.service_range:
+            raise Exception("Attempted to initialize service maps for"
+                            "Elevator with no service range.")
+        else:
+            self.active_map = ServiceMap(self.service_range)
+            self.defer_map = ServiceMap(self.service_range)
 
     def set_env(self, env):
         if self.env:
@@ -106,19 +150,20 @@ class Elevator:
             self.upper_bound = service_range[1]
             self.lower_bound = service_range[0]
 
-    def set_call_servicer(self):
+    def set_call_handler(self):
         if not self.env:
-            raise Exception("Attempted to assign call_handler to an Elevator "
-                            "with no environment.")
+            raise Exception("Attempted to assign a call handler to an "
+                            "Elevator with no environment.")
         if self.call_handler:
-            raise Exception("Attempted to assign call_handler to an Elevator "
-                            "that already had a call_handler.")
+            raise Exception("Attempted to assign a call handler to an "
+                            "Elevator that already had a call handler.")
         else:
-            self.call_handler = self.env.process(self._service_calls())
+            self.call_handler = self.env.process(self._handle_calls())
 
-    def _service_calls(self):
+    def _handle_calls(self):
         """
-        Continuously services calls while there are calls to be serviced.
+        Main, overarching Elevator operation method.
+        Continuously handles calls while there are calls to be handled.
         """
         while True:
             try:
@@ -126,14 +171,19 @@ class Elevator:
                 while self.active_map:
                     if (self.curr_floor == self.upper_bound
                             or self.curr_floor == self.lower_bound):
-                        print(f"Elevator {self.id} had unserviced call despite"
+                        print(f"Elevator {self.id} had unhandled call despite"
                               f"reaching its boundary. Are calls being handled"
                               f"properly?")
                         sys.exit(1)
                     next_stop = self.active_map.next_stop()
-                    self.move_to(next_stop)
-                    self.drop_off()
-                    self.pick_up()
+                    self._move_to(next_stop)
+                    self._drop_off()
+                    self._pick_up()
+                if self.defer_map:
+                    self.active_map = self.defer_map
+                    self._switch_direction()
+                else:
+                    self._await_calls()
 
                 # while self.active_map:
                 #     # go to next target floor
@@ -153,7 +203,6 @@ class Elevator:
 
             except simpy.Interrupt:
                 print(f"Elevator {self.id} call-handling was interrupted.")
-                pass
 
     def handle_call(self, call):
         """
@@ -163,74 +212,63 @@ class Elevator:
         self._recalibrate(call)
 
     def _recalibrate(self, call):
-        """ Given a call, determines whether to service it right away or
-        put it on hold. """
+        """ Given a call, determines whether to add it to the active-map
+        or defer-map. """
         print(f"Elevator {self.id} is recalibrating...")
         if call.direction == self.service_direction:
             if (self.service_direction == UP and call.origin > self.curr_floor
                     or self.service_direction == DOWN and call.origin < self.curr_floor):
-                self.active_map[call.origin]["pickup"] += call
+                self.active_map.set_pickup(call)
         else:
             self.defer_map[call.origin]["pickup"] += call
 
+    def process_call_or_something(self, call):
+        # movement and pickup/dropoff logic
+        # ...
+        self._go_idle()
 
-def process_call_or_something(self, call):
-    # movement and pickup/dropoff logic
-    # ...
-    self._go_idle()
+    def _start_moving(self, invoking_call):
+        call_direction = invoking_call.origin - self.curr_floor
+        self.movement = call_direction
+        self.service_direction = call_direction
+        self.dest_floor = invoking_call.origin
+        print_status(self.env.now, f"Elevator {self.id} has starting moving"
+                                   f"for call {invoking_call.id}")
 
+    def _go_idle(self):
+        self.movement = IDLE
+        self.service_direction = IDLE
+        self.dest_floor = None
+        print_status(self.env.now, f"Elevator {self.id} is going idle at floor"
+                                   f" {self.curr_floor}")
 
-def _start_moving(self, invoking_call):
-    call_direction = invoking_call.origin - self.curr_floor
-    self.movement = call_direction
-    self.service_direction = call_direction
-    self.dest_floor = invoking_call.origin
-    print_status(self.env.now, f"Elevator {self.id} has starting moving"
-                               f"for call {invoking_call.id}")
+    def _move_to(self, target_floor):
+        if target_floor > self.curr_floor:
+            self.movement = UP
+        elif target_floor < self.curr_floor:
+            self.movement = DOWN
+        try:
+            while self.curr_floor != target_floor:
+                self.env.run(self.env.process(self._move_one_floor()))
+                self.curr_floor += self.movement
+        except simpy.Interrupt:
+            print("Elevator _move_to() was interrupted.")
+            sys.exit(1)
+        self.movement = IDLE
 
+    def _move_one_floor(self):
+        yield self.env.timeout(self.f2f_time)
 
-def _go_idle(self):
-    self.movement = IDLE
-    self.service_direction = IDLE
-    self.dest_floor = None
-    print_status(self.env.now, f"Elevator {self.id} is going idle at floor"
-                               f" {self.curr_floor}")
+    def _pick_up(self):
+        if self.curr_capacity >= self.max_capacity:
+            raise Exception("Elevator capacity exceeded.")
+        self.curr_capacity += 1
+        print_status(self.env.now,
+                     f"(pick up) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")
 
-
-def _move_to(self, target_floor):
-    if target_floor > self.curr_floor:
-        self.movement = UP
-    elif target_floor < self.curr_floor:
-        self.movement = DOWN
-    try:
-        while self.curr_floor != target_floor:
-            self.env.run(self.env.process(self._move_one_floor()))
-            self.curr_floor += self.movement
-    except simpy.Interrupt:
-        print("Elevator _move_to() was interrupted.")
-        sys.exit(1)
-    self.movement = IDLE
-
-
-def move_up(self):
-    pass
-
-
-def _move_one_floor(self):
-    yield self.env.timeout(self.f2f_time)
-
-
-def _pick_up(self):
-    if self.curr_capacity >= self.max_capacity:
-        raise Exception("Elevator capacity exceeded.")
-    self.curr_capacity += 1
-    print_status(self.env.now,
-                 f"(pick up) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")
-
-
-def _drop_off(self):
-    if self.curr_capacity == 0:
-        raise Exception("Nobody on elevator to drop off")
-    self.curr_capacity -= 1
-    print_status(self.env.now,
-                 f"(drop off) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")
+    def _drop_off(self):
+        if self.curr_capacity == 0:
+            raise Exception("Nobody on elevator to drop off")
+        self.curr_capacity -= 1
+        print_status(self.env.now,
+                     f"(drop off) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")

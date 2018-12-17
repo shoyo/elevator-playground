@@ -16,7 +16,8 @@ class Session:
         self.building.set_call_queue()
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
-            elevator.set_call_servicer()
+            elevator.set_call_handler()
+            elevator.init_service_maps()
         self.building.assign_elevator_ids()
 
     def run(self):
@@ -57,8 +58,14 @@ class Session:
             if not elevator.env or elevator.id is None:
                 print("An Elevator does not have an environment or ID.")
                 return False
+            if not elevator.call_handler:
+                print("An Elevator does not have a call handler.")
+                return False
             if not elevator.service_range:
                 print("An Elevator does not have a service range.")
+                return False
+            if not elevator.active_map or elevator.defer_map:
+                print("An Elevator did not have its maps initialized.")
                 return False
         return True
 
