@@ -105,6 +105,7 @@ class BasicBuilding(Building):
     """ A building with a basic dispatcher. """
 
     def _generate_calls(self):
+        print("Building has started generating calls...")
         while True:
             yield self.env.timeout(randint(30, 30))
             call = self._generate_single_call()
@@ -118,6 +119,7 @@ class BasicBuilding(Building):
         return call
 
     def _handle_calls(self):
+        print("Building has started handling calls...")
         while True:
             call = yield self.call_queue.get()
             elevator = self._select_elevator(call)
