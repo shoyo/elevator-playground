@@ -11,13 +11,13 @@ class Session:
         self.total_runtime = runtime
         self.env = simpy.Environment()
         self.building.set_env(self.env)
-        self.building.set_call_generator()
-        self.building.set_call_handler()
-        self.building.set_call_queue()
+        self.building.init_call_generator()
+        self.building.init_call_handler()
+        self.building.init_call_queue()
         self.building.assign_elevator_ids()
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
-            elevator.set_call_handler()
+            elevator.init_call_handler()
             elevator.init_service_maps()
 
     def run(self):

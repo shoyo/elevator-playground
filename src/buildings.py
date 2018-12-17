@@ -1,5 +1,3 @@
-import sys
-
 import simpy
 from random import randint
 from utils import print_status, rand_call
@@ -26,8 +24,7 @@ class Building(ABC):
         self.call_history = []
 
         if num_floors < 1:
-            print("Building was initialized with less than 1 floor.")
-            sys.exit(1)
+            raise Exception("Building was initialized with less than 1 floor.")
         self.num_floors = num_floors
         self.elevators = elevators
         self.num_elevators = len(elevators)
@@ -49,33 +46,33 @@ class Building(ABC):
         else:
             self.env = env
 
-    def set_call_queue(self):
+    def init_call_queue(self):
         if not self.env:
-            raise Exception("Attempted to set call_queue for Elevator "
+            raise Exception("Attempted to initialize call queue for Elevator "
                             "with no environment.")
         if self.call_queue:
-            raise Exception("Attempted to set call_queue for Elevator "
-                            "that already had a call_queue.")
+            raise Exception("Attempted to initialize call queue for Elevator "
+                            "that already had a call queue.")
         else:
             self.call_queue = simpy.Store(self.env)
 
-    def set_call_generator(self):
+    def init_call_generator(self):
         if not self.env:
-            raise Exception("Attempted to assign initial process to a Building "
-                            "with no environment.")
+            raise Exception("Attempted to initialize call generator to a "
+                            "Building with no environment.")
         if self.call_generator:
-            raise Exception("Attempted to assign call_generator to a Building "
-                            "that already had an call_generator.")
+            raise Exception("Attempted to initialize call generator to a "
+                            "Building that already had a call generator.")
         else:
             self.call_generator = self.env.process(self._generate_calls())
 
-    def set_call_handler(self):
+    def init_call_handler(self):
         if not self.env:
-            raise Exception("Attempted to assign initial process to a Building "
-                            "with no environment.")
+            raise Exception("Attempted to initialize call handler to a "
+                            "Building with no environment.")
         if self.call_handler:
-            raise Exception("Attempted to assign call_handler to a Building "
-                            "that already had an call_handler.")
+            raise Exception("Attempted to initialize call handler to a "
+                            "Building that already had an call handler.")
         else:
             self.call_handler = self.env.process(self._handle_calls())
 
