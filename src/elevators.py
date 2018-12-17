@@ -1,3 +1,6 @@
+from collections import deque
+from copy import deepcopy
+
 import simpy
 from utils import print_status, UP, DOWN, IDLE
 
@@ -8,13 +11,14 @@ class ServiceMap:
     calls. Calls are classified according to whether they require a pick-up or
     drop-off.
     """
+
     def __init__(self, service_range):
         """
         :attrtype self.pickups: dict[int, List[Call]]
         :attr self.pickups: dictionary mapping floors to Calls that require a
                             pick-up
 
-        :attrtype self.dropoffs: dict[int, List[Call]]
+        :attrtype self.dropoffs: dict[int, deque[Call]]
         :attr self.dropoffs: dictionary mapping floors to Calls that require a
                             drop-off
 
@@ -31,7 +35,7 @@ class ServiceMap:
     def __getitem__(self, floor):
         """
         Returns a dictionary where keys ["pickup"] and ["dropoff"] map
-        to a list of calls that require pick-up/drop-off on given floor,
+        to a deque of calls that require pick-up/drop-off on given floor,
         respectively.
         """
         if not self._inrange(floor):
@@ -42,6 +46,17 @@ class ServiceMap:
                 "pickup": self.pickups[floor],
                 "dropoff": self.dropoffs[floor]
             }
+
+    def pop_next_pickup(self, floor):
+        call = self.pickups[floor].popleft()
+        return call
+
+    def pop_next_dropoff(self, floor):
+        call = self.dropoffs[floor].popleft()
+        return call
+
+    def enqueue_dropoff(self, call):
+        self.dropoffs[call.dest].append(call)
 
     def set_pickup(self, call):
         if not self._inrange(call.origin):
@@ -57,18 +72,21 @@ class ServiceMap:
         else:
             self.dropoffs[call.dest].append(call)
 
-    def pick_up(self, floor):
+    def drop_off(self, floor):
         """
-        Called when Elevator picks up all passengers on a given floor.
-        Converts all pick-up requests into drop-off requests.
+        Drops off a single passenger at given floor and returns the
+        corresponding call.
         """
-        self.dropoffs[floor].extend(self.pickups[floor])
-        self.pickups[floor] = []
+        return self.dropoffs[floor].popleft()
 
     def next_stop(self, curr_floor, direction):
         """
-        :type curr_floor: current location of Elevator
-        :type int direction: 1 denotes UP, -1 denotes DOWN
+        :type curr_floor: int
+        :param curr_floor: current location of Elevator
+
+        :type direction: int
+        :param direction: 1 denotes UP, -1 denotes DOWN
+
         Returns the next floor in the direction of travel that requires
         service if one exists. Returns None otherwise.
         """
@@ -121,6 +139,7 @@ class Elevator:
         self.id = None
 
         self.call_handler = None
+        self.call_queue = None
         self.active_map = None
         self.defer_map = None
 
@@ -130,12 +149,14 @@ class Elevator:
         self.curr_capacity = 0
 
         self.max_capacity = capacity
-        self.pickup_duration = 70
-        self.dropoff_duration = 70
+        self.pickup_duration = 30
+        self.dropoff_duration = 30
         self.f2f_time = 100
         self.service_range = None
         self.upper_bound = None
         self.lower_bound = None
+        self.directional_preference = UP
+        # preferred direction of travel when IDLE and requests exist above and below
 
     def init_service_maps(self):
         if not self.service_range:
@@ -147,6 +168,16 @@ class Elevator:
         else:
             self.active_map = ServiceMap(self.service_range)
             self.defer_map = ServiceMap(self.service_range)
+
+    def init_call_queue(self):
+        if not self.env:
+            raise Exception("Attempted to initialize call queue for "
+                            "Elevator with Environment.")
+        if self.call_queue:
+            raise Exception("Attempted to initialize call queue for "
+                            "Elevator which already had a call queue.")
+        else:
+            self.call_queue = simpy.Store(self.env)
 
     def set_env(self, env):
         if self.env:
@@ -190,48 +221,55 @@ class Elevator:
         Continuously handles calls while there are calls to be handled.
         """
         while True:
-            try:
-                print(f"Elevator {self.id} is handling calls...")
-                while self.active_map:
-                    if (self.curr_floor == self.upper_bound
-                            or self.curr_floor == self.lower_bound):
-                        raise Exception(f"Elevator {self.id} had unhandled "
-                                        f"calls despite reaching its boundary."
-                                        f" Are calls being handled properly?")
-                    # check if there are any new calls that were generated
-                    # instead of using simpy.Interrupt
-                    next_stop = self.active_map.next_stop()
-                    self._move_to(next_stop)
-                    self._drop_off()
-                    self._pick_up()
-                if self.defer_map:
-                    self.active_map = self.defer_map
-                    self._switch_direction()
-                else:
-                    self._await_calls()
+            print(f"Elevator {self.id} is handling calls...")
+            while self.active_map:
+                if (self.curr_floor == self.upper_bound
+                        or self.curr_floor == self.lower_bound):
+                    raise Exception(f"Elevator {self.id} had unhandled "
+                                    f"calls despite reaching its boundary."
+                                    f" This may have been caused due to "
+                                    f"limited capacity of Elevator.")
+                    # TODO: Handle limited capacity instead of erroring
+                self._recalibrate()
+                next_stop = self.active_map.next_stop()
+                self._move_to(next_stop)
+                self._drop_off()
+                self._pick_up()
+            if self.defer_map:
+                self.active_map = self.defer_map
+                self._switch_direction()
+            else:
+                self._await_calls()
 
-            except simpy.Interrupt:
-                print(f"Elevator {self.id} call-handling was interrupted.")
+    def enqueue(self, call):
+        """
+        Main interface with Elevator for receiving calls.
+        Puts given call into the Elevator's call queue. The Elevator
+        recalibrates its active-map and defer-map with the calls in
+        the call queue periodically.
+        """
+        self.call_queue.put(call)
 
-    def handle_call(self, call):
+    def _recalibrate(self):
         """
-        Main interface with Elevator for receiving assigned calls.
-        """
-        self.call_handler.interrupt()
-        self._recalibrate(call)
-
-    def _recalibrate(self, call):
-        """
-        Given a call, determines whether to add it to the active-map
-        or defer-map.
+        Checks the call queue to see if any new calls have been assigned.
+        For each call in the call queue, determines whether to add it to
+        the active-map or defer-map.
         """
         print(f"Elevator {self.id} is recalibrating...")
-        if call.direction == self.service_direction:
-            if (self.service_direction == UP and call.origin > self.curr_floor
-                    or self.service_direction == DOWN and call.origin < self.curr_floor):
-                self.active_map.set_pickup(call)
-        else:
-            self.defer_map.set_pickup(call)
+        for call in self.call_queue.items:
+            if self.service_direction == IDLE:
+                if call.direction == self.directional_preference:
+                    self.active_map.set_pickup(call)
+                else:
+                    self.defer_map.set_pickup(call)
+            else:
+                if self.service_direction == call.direction:
+                    if (self.service_direction == UP and call.origin > self.curr_floor
+                            or self.service_direction == DOWN and call.origin < self.curr_floor):
+                        self.active_map.set_pickup(call)
+                else:
+                    self.defer_map.set_pickup(call)
 
     def process_call_or_something(self, call):
         # movement and pickup/dropoff logic
@@ -241,13 +279,13 @@ class Elevator:
     def _start_moving(self, invoking_call):
         call_direction = invoking_call.origin - self.curr_floor
         self.service_direction = call_direction
-        self.dest_floor = invoking_call.origin
+        # self.dest_floor = invoking_call.origin
         print_status(self.env.now, f"Elevator {self.id} has starting moving"
                                    f"for call {invoking_call.id}")
 
     def _go_idle(self):
         self.service_direction = IDLE
-        self.dest_floor = None
+        # self.dest_floor = None
         print_status(self.env.now, f"Elevator {self.id} is going idle at floor"
                                    f" {self.curr_floor}")
 
@@ -262,6 +300,12 @@ class Elevator:
     def _move_one_floor(self):
         yield self.env.timeout(self.f2f_time)
 
+    def _pickup_single_passenger(self):
+        yield self.env.timeout(self.pickup_duration)
+
+    def _dropoff_single_passenger(self):
+        yield self.env.timeout(self.dropoff_duration)
+
     def _switch_direction(self):
         if self.service_direction == IDLE:
             raise Exception("Attempted to switch direction when Elevator was "
@@ -270,20 +314,54 @@ class Elevator:
             self.service_direction = DOWN
         elif self.service_direction == DOWN:
             self.service_direction = UP
+        print_status(self.env.now, f"Elevator {self.id} switched directions.")
 
     def _pick_up(self):
+        """
+        Picks up all passengers waiting at current floor.
+        :return:
+        """
         if self.curr_capacity >= self.max_capacity:
             raise Exception("Elevator capacity exceeded.")
-        self.curr_capacity += 1
 
-
-
+        while self.active_map.get_pickups(self.curr_floor):
+            if self.curr_capacity == self.max_capacity:
+                print_status(self.env.now, f"Elevator {self.id} is full. "
+                                           f"Skipping call at floor "
+                                           f"{self.curr_floor} ")
+            call = self.active_map.pop_next_pickup(self.curr_floor)
+            if call.origin != self.curr_floor:
+                raise Exception(f"Attempted to pick up Call {call.id} at"
+                                f"wrong origin.")
+            call.picked_up(self.env.now)
+            self.curr_capacity += 1
+            self.active_map.enqueue_dropoff(call)
+            self.env.run(self.env.process(self._pickup_single_passenger()))
         print_status(self.env.now,
                      f"(pick up) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")
 
     def _drop_off(self):
+        """
+        Drops off all passengers waiting to get off at current floor.
+        """
         if self.curr_capacity == 0:
             raise Exception("Nobody on elevator to drop off")
-        self.curr_capacity -= 1
+
+        while self.active_map.get_dropoffs(self.curr_floor):
+            call = self.active_map.pop_next_dropoff(self.curr_floor)
+            if call.dest != self.curr_floor:
+                raise Exception(f"Attempted to drop off Call {call.id} at"
+                                f"wrong destination.")
+            call.completed(self.env.now)
+            self.curr_capacity -= 1
+            self.env.run(self.env.process(self._dropoff_single_passenger()))
         print_status(self.env.now,
-                     f"(drop off) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")
+                     f"(drop off) Elevator {self.id} at floor "
+                     f"{self.curr_floor}, capacity now {self.curr_capacity}")
+
+    def _await_calls(self):
+        while True:
+            self._recalibrate()
+            if self.active_map:
+                break
+        return

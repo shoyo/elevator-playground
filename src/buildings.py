@@ -96,11 +96,6 @@ class Building(ABC):
         pass
 
     @abstractmethod
-    def _delegate_call(self, call, elevator):
-        """ Process a single call given an elevator. """
-        pass
-
-    @abstractmethod
     def _select_elevator(self, call):
         """ Judiciously selects an elevator to handle a generated call. """
         pass
@@ -126,10 +121,7 @@ class BasicBuilding(Building):
         while True:
             call = yield self.call_queue.get()
             elevator = self._select_elevator(call)
-            self._delegate_call(call, elevator)
-
-    def _delegate_call(self, call, elevator):
-        elevator.handle_call(call)
+            elevator.enqueue(call)
 
     def _select_elevator(self, call):
         # I probably want an efficient way of checking global state -- where each

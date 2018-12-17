@@ -18,6 +18,7 @@ class Session:
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
             elevator.init_call_handler()
+            elevator.init_call_queue()
             elevator.init_service_maps()
 
     def run(self):
@@ -60,6 +61,9 @@ class Session:
                 return False
             if not elevator.call_handler:
                 print("An Elevator does not have a call handler.")
+                return False
+            if not elevator.call_queue:
+                print("An Elevator does not have a call queue.")
                 return False
             if not elevator.service_range:
                 print("An Elevator does not have a service range.")

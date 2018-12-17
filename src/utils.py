@@ -62,6 +62,15 @@ class Call:
         self.process_time = None
         self.done = False
 
+    def picked_up(self, pick_up_time):
+        self.wait_time = pick_up_time - self.orig_time
+        print_status(pick_up_time, f"Call {self.id} was picked up")
+
+    def completed(self, completion_time):
+        self.done = True
+        self.process_time = completion_time - self.orig_time
+        print_status(completion_time, f"Call {self.id} is done")
+
 
 def rand_call(time, floor_upper_bound, floor_lower_bound=1):
     """
