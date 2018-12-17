@@ -32,20 +32,11 @@ class ServiceMap:
         self.upper_bound = service_range[1]
         self.lower_bound = service_range[0]
 
-    def __getitem__(self, floor):
-        """
-        Returns a dictionary where keys ["pickup"] and ["dropoff"] map
-        to a deque of calls that require pick-up/drop-off on given floor,
-        respectively.
-        """
-        if not self._inrange(floor):
-            raise Exception("Attempted to get a ServiceMap for a floor "
-                            "outside of service range.")
-        else:
-            return {
-                "pickup": self.pickups[floor],
-                "dropoff": self.dropoffs[floor]
-            }
+    def get_pickups(self):
+        return self.pickups
+
+    def get_dropoffs(self):
+        return self.dropoffs
 
     def pop_next_pickup(self, floor):
         call = self.pickups[floor].popleft()
@@ -158,27 +149,6 @@ class Elevator:
         self.directional_preference = UP
         # preferred direction of travel when IDLE and requests exist above and below
 
-    def init_service_maps(self):
-        if not self.service_range:
-            raise Exception("Attempted to initialize service maps for "
-                            "Elevator with no service range.")
-        if self.active_map or self.defer_map:
-            raise Exception("Attempted to initialize service maps for "
-                            "Elevator which already had service maps.")
-        else:
-            self.active_map = ServiceMap(self.service_range)
-            self.defer_map = ServiceMap(self.service_range)
-
-    def init_call_queue(self):
-        if not self.env:
-            raise Exception("Attempted to initialize call queue for "
-                            "Elevator with Environment.")
-        if self.call_queue:
-            raise Exception("Attempted to initialize call queue for "
-                            "Elevator which already had a call queue.")
-        else:
-            self.call_queue = simpy.Store(self.env)
-
     def set_env(self, env):
         if self.env:
             raise Exception("Attempted to set environment for Elevator "
@@ -205,15 +175,36 @@ class Elevator:
             self.upper_bound = service_range[1]
             self.lower_bound = service_range[0]
 
-    def set_call_handler(self):
+    def init_service_maps(self):
+        if not self.service_range:
+            raise Exception("Attempted to initialize service maps for "
+                            "Elevator with no service range.")
+        if self.active_map or self.defer_map:
+            raise Exception("Attempted to initialize service maps for "
+                            "Elevator which already had service maps.")
+        else:
+            self.active_map = ServiceMap(self.service_range)
+            self.defer_map = ServiceMap(self.service_range)
+
+    def init_call_handler(self):
         if not self.env:
-            raise Exception("Attempted to assign a call handler to an "
+            raise Exception("Attempted to initialize a call handler to an "
                             "Elevator with no environment.")
         if self.call_handler:
-            raise Exception("Attempted to assign a call handler to an "
+            raise Exception("Attempted to initialize a call handler to an "
                             "Elevator that already had a call handler.")
         else:
-            self.call_handler = self.env.process(self._handle_calls())
+            self.call_handler = self.env.process(self._await_calls())
+
+    def init_call_queue(self):
+        if not self.env:
+            raise Exception("Attempted to initialize call queue for "
+                            "Elevator with Environment.")
+        if self.call_queue:
+            raise Exception("Attempted to initialize call queue for "
+                            "Elevator which already had a call queue.")
+        else:
+            self.call_queue = simpy.Store(self.env)
 
     def _handle_calls(self):
         """
@@ -338,7 +329,8 @@ class Elevator:
             self.active_map.enqueue_dropoff(call)
             self.env.run(self.env.process(self._pickup_single_passenger()))
         print_status(self.env.now,
-                     f"(pick up) Elevator {self.id} at floor {self.curr_floor}, capacity now {self.curr_capacity}")
+                     f"(pick up) Elevator {self.id} at floor {self.curr_floor}"
+                     f", capacity now {self.curr_capacity}")
 
     def _drop_off(self):
         """
@@ -361,7 +353,9 @@ class Elevator:
 
     def _await_calls(self):
         while True:
-            self._recalibrate()
-            if self.active_map:
+            if self.call_queue and self.active_map:
+                self._recalibrate()
                 break
         return
+
+
