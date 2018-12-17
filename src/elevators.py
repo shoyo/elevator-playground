@@ -198,6 +198,8 @@ class Elevator:
                         raise Exception(f"Elevator {self.id} had unhandled "
                                         f"calls despite reaching its boundary."
                                         f" Are calls being handled properly?")
+                    # check if there are any new calls that were generated
+                    # instead of using simpy.Interrupt
                     next_stop = self.active_map.next_stop()
                     self._move_to(next_stop)
                     self._drop_off()

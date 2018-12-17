@@ -96,7 +96,7 @@ class Building(ABC):
         pass
 
     @abstractmethod
-    def _delegate_single_call(self, call, elevator):
+    def _delegate_call(self, call, elevator):
         """ Process a single call given an elevator. """
         pass
 
@@ -126,9 +126,9 @@ class BasicBuilding(Building):
         while True:
             call = yield self.call_queue.get()
             elevator = self._select_elevator(call)
-            self._delegate_single_call(call, elevator)
+            self._delegate_call(call, elevator)
 
-    def _delegate_single_call(self, call, elevator):
+    def _delegate_call(self, call, elevator):
         elevator.handle_call(call)
 
     def _select_elevator(self, call):
