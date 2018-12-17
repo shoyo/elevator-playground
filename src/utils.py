@@ -1,4 +1,3 @@
-import sys
 from random import sample
 
 
@@ -56,8 +55,8 @@ class Call:
         elif self.dest - self.origin < 0:
             self.direction = DOWN
         else:
-            print("A call was generated with the same origin and destination.")
-            sys.exit(1)
+            raise Exception("A call was generated with the same origin and "
+                            "destination.")
         self.orig_time = time
         self.wait_time = None
         self.process_time = None

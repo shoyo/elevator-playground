@@ -14,14 +14,16 @@ class Session:
         self.building.set_call_generator()
         self.building.set_call_handler()
         self.building.set_call_queue()
+        self.building.assign_elevator_ids()
         for elevator in self.building.elevators:
             elevator.set_env(self.env)
             elevator.set_call_handler()
             elevator.init_service_maps()
-        self.building.assign_elevator_ids()
 
     def run(self):
-        if self._valid_session():
+        if not self._valid_session():
+            raise Exception("Session was not valid. Could not run Session.")
+        else:
             print("BEGINNING SESSION")
             print("=================")
             self.env.run(until=self.total_runtime)
@@ -29,8 +31,6 @@ class Session:
             print("ENDING SESSION")
             # print("\nRESULTS:")
             # self._disp_metrics()
-        else:
-            raise Exception("Session was not valid. Could not run Session.")
 
     def _valid_session(self):
         if self.total_runtime <= 0:

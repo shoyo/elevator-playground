@@ -49,7 +49,8 @@ class ServiceMap:
     def next_stop(self, curr_floor, direction):
         """
         Returns the next floor in the direction of travel that requires
-        service if one exists. Returns None otherwise. """
+        service if one exists. Returns None otherwise.
+        """
         while True:
             next_floor = curr_floor + direction
             if not self._inrange(next_floor):
@@ -74,7 +75,7 @@ class ServiceMap:
 class Elevator:
     """
     Elevator class. Responsible for handling calls assigned to it by its
-    Building. Continuously serves calls while there are calls to be served.
+    Building. Continuously handles calls while there are calls to be handled.
 
     This Elevator maintains 2 maps: active-map and defer-map. The former
     maintains all calls in the current direction of travel, and the latter
@@ -88,9 +89,9 @@ class Elevator:
     Each elevator follows the SCAN algorithm:
     1) While there are people in the elevator or calls waiting in the
        current service direction, keep heading in that direction and
-       pickup/dropoff as necessary.
+       pick-up/drop-off as necessary.
     2) Once the elevator has serviced all calls in its current direction,
-       reverse direction and go to step (1) if there are requests. Else, stop
+       reverse direction and go to step (1) if there are calls. Else, stop
        and wait for a call (or move to another floor deemed more effective)
     """
 
@@ -118,8 +119,11 @@ class Elevator:
 
     def init_service_maps(self):
         if not self.service_range:
-            raise Exception("Attempted to initialize service maps for"
+            raise Exception("Attempted to initialize service maps for "
                             "Elevator with no service range.")
+        if self.active_map or self.defer_map:
+            raise Exception("Attempted to initialize service maps for "
+                            "Elevator which already had service maps.")
         else:
             self.active_map = ServiceMap(self.service_range)
             self.defer_map = ServiceMap(self.service_range)
@@ -212,8 +216,10 @@ class Elevator:
         self._recalibrate(call)
 
     def _recalibrate(self, call):
-        """ Given a call, determines whether to add it to the active-map
-        or defer-map. """
+        """
+        Given a call, determines whether to add it to the active-map
+        or defer-map.
+        """
         print(f"Elevator {self.id} is recalibrating...")
         if call.direction == self.service_direction:
             if (self.service_direction == UP and call.origin > self.curr_floor
