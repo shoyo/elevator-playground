@@ -23,14 +23,17 @@ class ServiceMap:
                             drop-off
 
         :attrtype self.service_range: tuple(int, int)
-        :attr self.service_range: tuple where 0 indexes lower bound, 1 indexes
-                            upper bound
+        :attr self.service_range: tuple where 0 indexes lower bound (inclusive)
+                                  1 indexes upper bound (exclusive)
         """
         self._pickups = {}
         self._dropoffs = {}
         self._service_range = service_range
         self._upper_bound = service_range[1]
         self._lower_bound = service_range[0]
+        for i in range(self._lower_bound, self._upper_bound):
+            self._pickups[i] = deque()
+            self._dropoffs[i] = deque()
 
     def get_pickups(self):
         return self._pickups
@@ -73,36 +76,46 @@ class ServiceMap:
         """
         return self._dropoffs[floor].popleft()
 
-    def next_stop(self, curr_floor, direction):
+    def next_stop(self, curr_floor, direction, directional_pref):
         """
         :type curr_floor: int
         :param curr_floor: current location of Elevator
 
         :type direction: int
         :param direction: 1 denotes UP, -1 denotes DOWN
+        
+        :type directional_pref: int
+        :param directional_pref: same as direction; default movement 
+                                       when idle
 
         Returns the next floor in the direction of travel that requires
         service if one exists. Returns None otherwise.
         """
-        while True:
+        # TODO: more robust checking for directional pref -- make sure it's
+        # up or down
+        if direction == IDLE and directional_pref == IDLE:
+            raise Exception("Cannot find next stop if Elevator is idle "
+                            "and does not have valid directional preference.")
+        if direction == IDLE:
+            direction = directional_pref
+        next_floor = curr_floor
+        while self._inrange(next_floor):
             next_floor = curr_floor + direction
-            if not self._inrange(next_floor):
-                return None
             if self._service_required(next_floor):
                 return next_floor
+        return None
 
-    def _service_required(self, floor_num):
+    def _service_required(self, floor):
         """
-        Returns a boolean denoting whether floor floor_num requires the
-        Elevator to stop to pick-up or drop-off.
+        Returns whether given floor requires a pick-up or drop-off.
         """
-        return self._pickups[floor_num] or self._dropoffs[floor_num]
+        return not not self._pickups[floor] or not not self._dropoffs[floor]
 
     def _inrange(self, floor):
         """
         Returns whether floor is within service range.
         """
-        return self._lower_bound < floor < self._upper_bound
+        return self._lower_bound <= floor < self._upper_bound
 
 
 class Elevator:
@@ -150,7 +163,7 @@ class Elevator:
         self.service_range = None
         self.upper_bound = None
         self.lower_bound = None
-        self.directional_preference = UP
+        self.directional_pref = UP
         # preferred direction of travel when IDLE and requests exist above and below
 
     def set_env(self, env):
@@ -227,24 +240,39 @@ class Elevator:
         """
         while True:
             print(f"Elevator {self.id} is handling calls...")
-            yield self.env.timeout(1)
+            yield self.env.timeout(90)
             while self.active_map and not self.active_map.is_empty():
-                if (self.curr_floor == self.upper_bound
-                        or self.curr_floor == self.lower_bound):
-                    raise Exception(f"Elevator {self.id} had unhandled "
-                                    f"calls despite reaching its boundary."
-                                    f" This may have been caused due to "
-                                    f"limited capacity of Elevator.")
-                    # TODO: Handle limited capacity instead of raising exception
-                next_stop = self.active_map.next_stop()
+                # if (self.curr_floor == self.upper_bound
+                #         or self.curr_floor == self.lower_bound):
+                #     raise Exception(f"Elevator {self.id} had unhandled "
+                #                     f"calls despite reaching its boundary."
+                #                     f" This may have been caused due to "
+                #                     f"limited capacity of Elevator.")
+                # TODO: Handle limited capacity instead of raising exception
+                next_stop = self.active_map.next_stop(self.curr_floor,
+                                                      self.service_direction,
+                                                      self.directional_pref)
                 self._move_to(next_stop)
                 self._drop_off()
                 self._pick_up()
-            if self.defer_map:
+            if not self.defer_map.is_empty():
                 self.active_map = self.defer_map
                 self._switch_direction()
 
+    def enqueue(self, call):
+        """
+        Main interface with Elevator for receiving calls.
+        Puts given call into the Elevator's call queue. The Elevator
+        recalibrates its active-map and defer-map with the calls in
+        the call queue periodically.
+        """
+        self.call_queue.put(call)
+
     def _await_calls(self):
+        """
+        Constantly waits for calls to be assigned by the Building. If it
+        receives a call, the Elevators service maps are recalibrated.
+        """
         while True:
             print(f"Elevator {self.id} is awaiting calls...")
             call = yield self.call_queue.get()
@@ -258,7 +286,7 @@ class Elevator:
         """
         print(f"Elevator {self.id} is recalibrating...")
         if self.service_direction == IDLE:
-            if call.direction == self.directional_preference:
+            if call.direction == self.directional_pref:
                 self.active_map.set_pickup(call)
             else:
                 self.defer_map.set_pickup(call)
@@ -270,18 +298,8 @@ class Elevator:
             else:
                 self.defer_map.set_pickup(call)
 
-    def enqueue(self, call):
-        """
-        Main interface with Elevator for receiving calls.
-        Puts given call into the Elevator's call queue. The Elevator
-        recalibrates its active-map and defer-map with the calls in
-        the call queue periodically.
-        """
-        self.call_queue.put(call)
-
-    def _start_moving(self, invoking_call):
-        call_direction = invoking_call.origin - self.curr_floor
-        self.service_direction = call_direction
+    def _start_moving(self, direction):
+        self.service_direction = direction
         print_status(self.env.now, f"Elevator {self.id} has starting moving"
                                    f"for call {invoking_call.id}")
 
@@ -292,8 +310,10 @@ class Elevator:
                                        f" {self.curr_floor}")
 
     def _move_to(self, target_floor):
-        # self._start_moving()
-        if target_floor - self.curr_floor != self.service_direction:
+        direction = target_floor - self.curr_floor
+        if self.service_direction == IDLE:
+            self._start_moving(direction)
+        elif direction != self.service_direction:
             raise Exception("Attempted to move Elevator to a floor not in its"
                             "service direction.")
         while self.curr_floor != target_floor:

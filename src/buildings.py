@@ -35,7 +35,7 @@ class Building(ABC):
 
         self.service_ranges = {}
         for i in range(len(elevators)):
-            service_range = (1, self.num_floors)
+            service_range = (1, self.num_floors + 1)
             self.service_ranges[elevators[i]] = service_range
             self.elevators[i].set_service_range(service_range)
 
