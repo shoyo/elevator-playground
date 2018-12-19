@@ -12,7 +12,7 @@ class Session:
         self.env = simpy.Environment()
         self.building.set_env(self.env)
         self.building.init_call_generator()
-        self.building.init_call_handler()
+        self.building.init_call_assigner()
         self.building.init_call_queue()
         self.building.assign_elevator_ids()
         for elevator in self.building.elevators:
@@ -50,8 +50,8 @@ class Session:
         if not self.building.call_queue:
             print("Building does not have a call queue.")
             return False
-        if not self.building.call_generator or not self.building.call_handler:
-            print("Building does not have a call generator or handler.")
+        if not self.building.call_generator or not self.building.call_assigner:
+            print("Building does not have a call generator or assigner.")
             return False
         if not self.building.elevators:
             print("Building does not have elevators.")

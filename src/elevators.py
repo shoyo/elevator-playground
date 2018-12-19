@@ -1,5 +1,4 @@
 from collections import deque
-from copy import deepcopy
 
 import simpy
 from utils import print_status, UP, DOWN, IDLE
@@ -240,7 +239,7 @@ class Elevator:
         """
         while True:
             print(f"Elevator {self.id} is handling calls...")
-            yield self.env.timeout(90)
+            yield self.env.timeout(0)
             while self.active_map and not self.active_map.is_empty():
                 # if (self.curr_floor == self.upper_bound
                 #         or self.curr_floor == self.lower_bound):
@@ -276,7 +275,7 @@ class Elevator:
         while True:
             print(f"Elevator {self.id} is awaiting calls...")
             call = yield self.call_queue.get()
-            print(f"Elevator {self.id} got a call!")
+            print(f"Elevator {self.id} was assigned a call!")
             self._recalibrate(call)
 
     def _recalibrate(self, call):

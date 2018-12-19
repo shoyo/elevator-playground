@@ -19,7 +19,7 @@ class Building(ABC):
         """
         self.env = None
         self.call_generator = None
-        self.call_handler = None
+        self.call_assigner = None
         self.call_queue = None
         self.call_history = []
 
@@ -66,15 +66,15 @@ class Building(ABC):
         else:
             self.call_generator = self.env.process(self._generate_calls())
 
-    def init_call_handler(self):
+    def init_call_assigner(self):
         if not self.env:
-            raise Exception("Attempted to initialize call handler to a "
+            raise Exception("Attempted to initialize call assigner to a "
                             "Building with no environment.")
-        if self.call_handler:
-            raise Exception("Attempted to initialize call handler to a "
+        if self.call_assigner:
+            raise Exception("Attempted to initialize call assigner to a "
                             "Building that already had an call handler.")
         else:
-            self.call_handler = self.env.process(self._handle_calls())
+            self.call_assigner = self.env.process(self._assign_calls())
 
     def assign_elevator_ids(self):
         for i in range(self.num_elevators):
@@ -91,7 +91,7 @@ class Building(ABC):
         pass
 
     @abstractmethod
-    def _handle_calls(self):
+    def _assign_calls(self):
         """ Periodically check the call queue for any queued calls and process them. """
         pass
 
@@ -118,8 +118,8 @@ class BasicBuilding(Building):
         print_status(self.env.now, f"[Generate] call {call.id}: floor {call.origin} to {call.dest}")
         return call
 
-    def _handle_calls(self):
-        print("Building has started handling calls...")
+    def _assign_calls(self):
+        print("Building has started assigning calls...")
         while True:
             call = yield self.call_queue.get()
             elevator = self._select_elevator(call)
