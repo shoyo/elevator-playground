@@ -4,132 +4,20 @@ import simpy
 from utils import print_status, UP, DOWN, IDLE
 
 
-class ServiceMap:
-    """
-    Used by Elevator. Maps floors that require service with their corresponding
-    calls. Calls are classified according to whether they require a pick-up or
-    drop-off.
-    """
-
-    def __init__(self, service_range):
-        """
-        :attrtype self.pickups: dict[int, List[Call]]
-        :attr self.pickups: dictionary mapping floors to Calls that require a
-                            pick-up
-
-        :attrtype self.dropoffs: dict[int, deque[Call]]
-        :attr self.dropoffs: dictionary mapping floors to Calls that require a
-                            drop-off
-
-        :attrtype self.service_range: tuple(int, int)
-        :attr self.service_range: tuple where 0 indexes lower bound (inclusive)
-                                  1 indexes upper bound (exclusive)
-        """
-        self._pickups = {}
-        self._dropoffs = {}
-        self._service_range = service_range
-        self._upper_bound = service_range[1]
-        self._lower_bound = service_range[0]
-        for i in range(self._lower_bound, self._upper_bound):
-            self._pickups[i] = deque()
-            self._dropoffs[i] = deque()
-
-    def get_pickups(self):
-        return self._pickups
-
-    def get_dropoffs(self):
-        return self._dropoffs
-
-    def is_empty(self):
-        return not self._pickups and not self._dropoffs
-
-    def pop_next_pickup(self, floor):
-        call = self._pickups[floor].popleft()
-        return call
-
-    def pop_next_dropoff(self, floor):
-        call = self._dropoffs[floor].popleft()
-        return call
-
-    def enqueue_dropoff(self, call):
-        self._dropoffs[call.dest].append(call)
-
-    def set_pickup(self, call):
-        if not self._inrange(call.origin):
-            raise Exception("Attempted to give ServiceMap a pick-up call "
-                            "for a floor outside of service range.")
-        else:
-            self._pickups[call.origin].append(call)
-
-    def _set_dropoff(self, call):
-        if not self._inrange(call.dest):
-            raise Exception("Attempted to give ServiceMap a drop-off call "
-                            "for a floor outside of service range.")
-        else:
-            self._dropoffs[call.dest].append(call)
-
-    def drop_off(self, floor):
-        """
-        Drops off a single passenger at given floor and returns the
-        corresponding call.
-        """
-        return self._dropoffs[floor].popleft()
-
-    def next_stop(self, curr_floor, direction, directional_pref):
-        """
-        :type curr_floor: int
-        :param curr_floor: current location of Elevator
-
-        :type direction: int
-        :param direction: 1 denotes UP, -1 denotes DOWN
-        
-        :type directional_pref: int
-        :param directional_pref: same as direction; default movement 
-                                       when idle
-
-        Returns the next floor in the direction of travel that requires
-        service if one exists. Returns None otherwise.
-        """
-        # TODO: more robust checking for directional pref -- make sure it's
-        # up or down
-        if direction == IDLE and directional_pref == IDLE:
-            raise Exception("Cannot find next stop if Elevator is idle "
-                            "and does not have valid directional preference.")
-        if direction == IDLE:
-            direction = directional_pref
-        next_floor = curr_floor
-        while self._inrange(next_floor):
-            next_floor = curr_floor + direction
-            if self._service_required(next_floor):
-                return next_floor
-        return None
-
-    def _service_required(self, floor):
-        """
-        Returns whether given floor requires a pick-up or drop-off.
-        """
-        return not not self._pickups[floor] or not not self._dropoffs[floor]
-
-    def _inrange(self, floor):
-        """
-        Returns whether floor is within service range.
-        """
-        return self._lower_bound <= floor < self._upper_bound
-
-
 class Elevator:
     """
     Elevator class. Responsible for handling calls assigned to it by its
     Building. Continuously handles calls while there are calls to be handled.
 
-    This Elevator maintains 2 maps: active-map and defer-map. The former
-    maintains all calls in the current direction of travel, and the latter
-    maintains all calls in the opposite direction.
+    An Elevator continuously maintains a call queue, which contains all calls
+    requiring a pick-up or drop-off. Pick-ups are classified as either an
+    upward-headed call or downward-headed call. These calls are further
+    classified as accessible calls or inaccessible calls, depending on whether
+    the call can be reached without disrupting the SCAN algorithm.
 
     Whenever this Elevator is assigned a call, its recalibration process is
-    invoked. This Elevator then determines whether to put the call into its
-    active-map or defer-map. The Elevator then proceeds to handle calls with
-    the algorithm described below.
+    invoked. This Elevator then determines where to maintain the call until
+    the call is served.
 
     Each elevator follows the SCAN algorithm:
     1) While there are people in the elevator or calls waiting in the
@@ -147,8 +35,7 @@ class Elevator:
         self.call_handler = None
         self.call_awaiter = None
         self.call_queue = None
-        self.active_map = None
-        self.defer_map = None
+        self.call_pipe = None
 
         self.curr_floor = 1
         self.dest_floor = None
@@ -165,6 +52,7 @@ class Elevator:
         self.directional_pref = UP
         # preferred direction of travel when IDLE and requests exist above and below
 
+    # TODO: refactor exceptions
     def set_env(self, env):
         if self.env:
             raise Exception("Attempted to set environment for Elevator "
@@ -231,6 +119,18 @@ class Elevator:
                             "Elevator which already had a call queue.")
         else:
             self.call_queue = simpy.Store(self.env)
+
+    def init_call_pipe(self):
+        """
+        Calls assigned to an Elevator are stored in the call pipe until it
+        is handled by the recalibration process.
+        """
+        if not self.env:
+            raise Exception("Attempted to initialize call pipe for "
+                            "Elevator with no Environment.")
+        if self.call_pipe:
+            raise Exception("Attempted to initialize call pipe for "
+                            "Elevator which already had a call pipe.")
 
     def _handle_calls(self):
         """

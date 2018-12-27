@@ -14,13 +14,8 @@ class Session:
         self.building.init_call_generator()
         self.building.init_call_assigner()
         self.building.init_call_queue()
-        self.building.assign_elevator_ids()
-        for elevator in self.building.elevators:
-            elevator.set_env(self.env)
-            elevator.init_call_handler()
-            elevator.init_call_awaiter()
-            elevator.init_call_queue()
-            elevator.init_service_maps()
+        self.building.init_elevators()
+
 
     def run(self):
         if not self._valid_session():

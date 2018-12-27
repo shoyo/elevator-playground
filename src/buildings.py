@@ -76,6 +76,16 @@ class Building(ABC):
         else:
             self.call_assigner = self.env.process(self._assign_calls())
 
+    def init_elevators(self):
+        self.assign_elevator_ids()
+        for elevator in self.elevators:
+            elevator.set_env(self.env)
+            elevator.init_call_handler()
+            elevator.init_call_awaiter()
+            elevator.init_call_queue()
+            elevator.init_call_pipe()
+            elevator.init_service_maps()
+
     def assign_elevator_ids(self):
         for i in range(self.num_elevators):
             self.elevators[i].set_id(i)
