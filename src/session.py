@@ -2,10 +2,10 @@ import simpy
 
 
 class Session:
-    """
-    Responsible for setting up simulation environment for a Building
+    """Responsible for setting up simulation environment for a Building
     containing Elevator(s) and calculating simulation results.
     """
+
     def __init__(self, building, runtime=36000):
         self.building = building
         self.total_runtime = runtime
@@ -15,7 +15,6 @@ class Session:
         self.building.init_call_assigner()
         self.building.init_call_queue()
         self.building.init_elevators()
-
 
     def run(self):
         if not self._valid_session():

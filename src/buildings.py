@@ -1,12 +1,11 @@
 import simpy
 from random import randint
-from utils import print_status, rand_call
+from src.utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 
 class Building(ABC):
-    """
-    Building class. Responsible for generating random elevator calls and
+    """Responsible for generating random elevator calls and
     assigning them to appropriate Elevator given its strategy.
 
     Contains a call-generating process and a call-handling process, both of
@@ -84,7 +83,6 @@ class Building(ABC):
             elevator.init_call_awaiter()
             elevator.init_call_queue()
             elevator.init_call_pipe()
-            elevator.init_service_maps()
 
     def assign_elevator_ids(self):
         for i in range(self.num_elevators):
