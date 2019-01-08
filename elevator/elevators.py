@@ -105,7 +105,7 @@ class Elevator:
             raise Exception("Attempted to initialize call queue for "
                             "Elevator which already had a call queue.")
         else:
-            self.call_queue = CallQueue()
+            self.call_queue = CallTree()
 
     def init_call_pipe(self):
         """Initializes pipe to hold calls that are have yet to be placed in the call queue."""
@@ -264,34 +264,52 @@ class Elevator:
                      f"{self.curr_floor}, capacity now {self.curr_capacity}")
 
 
-class CallQueue:
-    def __init__(self):
-        """Maintain calls to be handled by the Elevator class.
+class CallTree:
+    """Maintain calls to be handled by the Elevator class as a tree.
 
-        The way calls are organized can be visualized as a tree, shown below:
+    Calls are maintained as follows:
 
                         ALL CALLS
                         /      \
                   PICKUPS      DROP-OFFS
-                    /  \
-                 UP     DOWN
-               / \        / \
-         VALID INVALID VALID INVALID
+                 /       \
+               UP         DOWN
+             /   \       /    \
+     REACHABLE    \  REACHABLE \
+             UNREACHABLE    UNREACHABLE
 
-        where:
-        ALL CALLS  -- all calls assigned to the elevator.
-        PICKUPS -- pickup requests to be handled by the elevator.
-        DROP-OFFS -- drop-off requests to be handled by the elevator.
-        UP CALLS -- upward-headed calls.
-        DOWN CALLS -- downward-headed calls.
-        VALID -- calls that can be accessed without breaking SCAN*.
-        INVALID -- calls that cannot be accessed without breaking SCAN*.
+    where:
+    ALL CALLS   -- all calls assigned to the elevator
+    PICKUPS     -- pickup requests to be handled by the elevator
+    DROP-OFFS   -- drop-off requests to be handled by the elevator
+    UP          -- upward-headed calls
+    DOWN        -- downward-headed calls
+    REACHABLE   -- calls that can be accessed without breaking SCAN*
+    UNREACHABLE -- calls that cannot be accessed without breaking SCAN*
 
-        (* SCAN denotes the SCAN algorithm, the basic call-handling process
-        employed by each elevator.)
+    Leaf nodes of the tree (DROP-OFFS, REACHABLE, UNREACHABLE) are implemented
+    as dictionaries mapping floor number to specific Call class instance.
 
-        Uses:
-        As the Elevator handles calls, it accesses all the valid calls for its
-        direction of travel. The call assigning process places
-        """
-        pass
+    (* SCAN denotes the SCAN algorithm, the basic call-handling process
+    employed by each elevator.)
+    """
+    def __init__(self):
+        """Create an empty CallTree."""
+        self.all_calls = {
+            "pickups": {
+                "up": {
+                    "reachable": {},
+                    "unreachable": {},
+                },
+                "down": {
+                    "reachable": {},
+                    "unreachable": {},
+                },
+            },
+            "dropoffs": {}
+        }
+
+
+
+
+

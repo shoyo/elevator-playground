@@ -1,5 +1,5 @@
 .DS_Store
 .idea
-src/__pycache__
-src/.DS_Store
+elevator/__pycache__
+elevator/.DS_Store
 tests/__pycache__

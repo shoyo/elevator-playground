@@ -1,8 +1,8 @@
 import unittest
 import random
-from src.elevators import Elevator
-from src.buildings import BasicBuilding
-from src.session import Session
+from elevator.elevators import Elevator
+from elevator.buildings import BasicBuilding
+from elevator.session import Session
 
 
 class ElevatorTests(unittest.TestCase):

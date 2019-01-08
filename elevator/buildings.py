@@ -5,38 +5,26 @@ from abc import ABC, abstractmethod
 
 
 class Building(ABC):
-    """Responsible for generating random elevator calls and
-    assigning them to appropriate Elevator given its strategy.
+    """A building containing elevators that handles randomly generated calls.
 
-    Contains a call-generating process and a call-handling process, both of
-    which asynchronously put/get calls respectively to the call queue.
+    (more documentation)
     """
     def __init__(self, num_floors, elevators):
         """
-        :param int num_floors: number of floors
-        :param list[Elevator] elevators: all Elevators in this Building
+        Create a building with a
         """
         self.env = None
         self.call_generator = None
         self.call_assigner = None
         self.call_queue = None
         self.call_history = []
-
         if num_floors < 1:
             raise Exception("Building was initialized with less than 1 floor.")
         self.num_floors = num_floors
         self.elevators = elevators
         self.num_elevators = len(elevators)
-
-        self.floor_queues = {}
-        for i in range(1, num_floors + 1):
-            self.floor_queues[i] = 0
-
-        self.service_ranges = {}
-        for i in range(len(elevators)):
-            service_range = (1, self.num_floors + 1)
-            self.service_ranges[elevators[i]] = service_range
-            self.elevators[i].set_service_range(service_range)
+        self.floor_queues = self._init_floor_queues()
+        self.service_ranges = self._init_service_ranges()
 
     def set_env(self, env):
         if self.env:
@@ -76,7 +64,7 @@ class Building(ABC):
             self.call_assigner = self.env.process(self._assign_calls())
 
     def init_elevators(self):
-        self.assign_elevator_ids()
+        self._assign_elevator_ids()
         for elevator in self.elevators:
             elevator.set_env(self.env)
             elevator.init_call_handler()
@@ -84,33 +72,48 @@ class Building(ABC):
             elevator.init_call_queue()
             elevator.init_call_pipe()
 
-    def assign_elevator_ids(self):
+    def _init_floor_queues(self):
+        queues = {}
+        for i in range(1, self.num_floors + 1):
+            queues[i] = 0
+        return queues
+
+    def _init_service_ranges(self):
+        ranges = {}
+        for i in range(self.num_elevators):
+            service_range = (1, self.num_floors + 1)
+            ranges[self.elevators[i]] = service_range
+            self.elevators[i].set_service_range(service_range)
+        return ranges
+
+    def _assign_elevator_ids(self):
+        """Give a unique ID number to each elevator."""
         for i in range(self.num_elevators):
             self.elevators[i].set_id(i)
 
     @abstractmethod
     def _generate_calls(self):
-        """ Periodically generates a random call from an source floor to a
-        destination floor and places call into the call queue. """
+        """Periodically generate a call and place it into the call queue."""
+        pass
 
     @abstractmethod
     def _generate_single_call(self):
-        """ Generates a single call. """
+        """Generate a random call."""
         pass
 
     @abstractmethod
     def _assign_calls(self):
-        """ Periodically check the call queue for any queued calls and process them. """
+        """Periodically check the call queue for any calls and assign them."""
         pass
 
     @abstractmethod
     def _select_elevator(self, call):
-        """ Judiciously selects an elevator to handle a generated call. """
+        """Judiciously select an elevator to handle a call."""
         pass
 
 
 class BasicBuilding(Building):
-    """ A building with a basic dispatcher. """
+    """A building that assigns calls randomly."""
 
     def _generate_calls(self):
         print("Building has started generating calls...")
@@ -141,19 +144,6 @@ class BasicBuilding(Building):
         print_status(self.env.now,
                      f"[Select] call {call.id}: Elevator {selected.id}")
         return selected
-
-    # TODO: DEPRECATING
-    def _process_call(self, call, elevator):
-        elevator.move_to(call.origin)
-        elevator.pick_up()
-        call.wait_time = self.env.now - call.orig_time
-        print_status(self.env.now, f"call {call.id} waited {call.wait_time / 10} s")
-        elevator.move_to(call.dest)
-        elevator.drop_off()
-        call.done = True
-        call.process_time = self.env.now - call.orig_time
-
-        print_status(self.env.now, f"[Done] call {call.id}")
 
 
 class BasicSectorBuilding:
