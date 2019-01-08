@@ -71,15 +71,6 @@ class Session:
                 return False
         return True
 
-    def _view_state(self):
-        """ Method for checking internal state of Session instance.
-        For debugging purposes. """
-        print(f"self.env = {self.env}")
-        print(f"self.building = {self.building}")
-        print(f"self.building.elevators = ")
-        for elevator in self.building.elevators:
-            print(f"elevator = {elevator}, id = {elevator.id}")
-
     def _disp_metrics(self):
         # TODO: Maybe make this more efficient
         total_wait = sum(r.wait_time for r in self.building.call_history if

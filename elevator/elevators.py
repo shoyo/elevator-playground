@@ -21,105 +21,68 @@ class Elevator:
 
     Whenever a call is assigned to an Elevator by a Building, the call is
     placed in the call pipe (a simple deque) to await further processing.
-   """
+    """
 
-    def __init__(self, capacity=simpy.core.Infinity):
-        self.env = None
-        self.id = None
+    def __init__(self, building, env, id, capacity=simpy.core.Infinity):
+        """
+        Arguments:
+        building -- Building instance that contains this elevator
+        env      -- simpy.Environment instance that runs the simulation
+        id       -- unique ID (given by building) to identify each elevator
+        capacity -- total number of passengers that elevator can hold
 
-        self.call_handler = None
-        self.call_awaiter = None
-        self.call_queue = None
-        self.call_pipe = None
+        Attributes:
+        call handler      -- simpy process for serving calls
+        call awaiter      -- simpy process for awaiting calls to be placed in
+                             call pipe
+        call queue        -- structure for maintaining unhandled calls
+        call pipe         -- queue that holds assigned calls
+        curr floor        -- current floor
+        dest floor        -- destination floor
+        service direction -- current direction of service (1 denotes UP,
+                             -1 denotes DOWN, 0 denotes IDLE)
+        curr capacity     -- current capacity
+        service range     -- range of floors that the elevator is expected to
+                             serve
+        upper bound       -- upper bound of service range
+        lower bound       -- lower bound of service range
+        max capacity      -- maximum capacity
+        pickup duration   -- time* it takes to pick up 1 passenger
+        dropoff duration  -- time* it takes to drop off 1 passenger
+        f2f time          -- time* it takes to travel between adjacent floors
+        directional pref  -- default direction of travel when IDLE and calls
+                             exist above and below
 
+        (*Unit is 0.1 seconds. Example: 75 -> 7.5 in-simulation seconds)
+
+        """
+        self.env = env
+        self.id = id
+
+        # Call-processing utilities
+        self.call_handler = self.env.process(self._handle_calls())
+        self.call_awaiter = self.env.process(self._await_calls())
+        self.call_queue = CallManager(building.num_floors)
+        self.call_pipe = simpy.Store()
+
+        # Parameters that can change constantly
         self.curr_floor = 1
         self.dest_floor = None
         self.service_direction = IDLE
         self.curr_capacity = 0
+        self.service_range = None
+        self.upper_bound = None
+        self.lower_bound = None
 
+        # Parameters that don't change
         self.max_capacity = capacity
         self.pickup_duration = 30
         self.dropoff_duration = 30
         self.f2f_time = 100
-        self.service_range = None
-        self.upper_bound = None
-        self.lower_bound = None
-        self.directional_pref = UP
-        # preferred direction of travel when IDLE and requests exist above and below
-
-    # TODO: refactor exceptions
-    def set_env(self, env):
-        if self.env:
-            raise Exception("Attempted to set environment for Elevator "
-                            "which already had an environment.")
-        else:
-            self.env = env
-
-    def set_id(self, id):
-        if self.id:
-            raise Exception("Attempted to set ID for Elevator which "
-                            "already had an ID.")
-        else:
-            self.id = id
-
-    def set_service_range(self, service_range):
-        if service_range[0] > service_range[1]:
-            raise Exception("Attempted to set an invalid service range for "
-                            "Elevator")
-        if self.service_range:
-            raise Exception("Attempted to set Building for Elevator which"
-                            "already had a Building.")
-        else:
-            self.service_range = service_range
-            self.upper_bound = service_range[1]
-            self.lower_bound = service_range[0]
-
-    def init_call_handler(self):
-        """Initializes process for handling assigned calls."""
-        if not self.env:
-            raise Exception("Attempted to initialize a call handler to an "
-                            "Elevator with no environment.")
-        if self.call_handler:
-            raise Exception("Attempted to initialize a call handler to an "
-                            "Elevator that already had a call handler.")
-        else:
-            self.call_handler = self.env.process(self._handle_calls())
-
-    def init_call_awaiter(self):
-        """Initializes process for awaiting assigned calls."""
-        if not self.env:
-            raise Exception("Attempted to initialize a call awaiter to an "
-                            "Elevator with no environment.")
-        if self.call_awaiter:
-            raise Exception("Attempted to initialize a call awaiter to an "
-                            "Elevaotr that already had a call awaiter.")
-        else:
-            self.call_awaiter = self.env.process(self._await_calls())
-
-    def init_call_queue(self):
-        """Initializes structure to maintain all assigned calls."""
-        if not self.env:
-            raise Exception("Attempted to initialize call queue for "
-                            "Elevator with Environment.")
-        if self.call_queue:
-            raise Exception("Attempted to initialize call queue for "
-                            "Elevator which already had a call queue.")
-        else:
-            self.call_queue = CallTree()
-
-    def init_call_pipe(self):
-        """Initializes pipe to hold calls that are have yet to be placed in the call queue."""
-        if not self.env:
-            raise Exception("Attempted to initialize call pipe for "
-                            "Elevator with no Environment.")
-        if self.call_pipe:
-            raise Exception("Attempted to initialize call pipe for "
-                            "Elevator which already had a call pipe.")
-        else:
-            self.call_pipe = simpy.Store()
+        self.directional_pref = UP # preferred direction of travel when IDLE and requests exist above and below
 
     def _handle_calls(self):
-        """Continuously handles calls while there are calls to be handled."""
+        """Continuously handle calls while there are calls to be handled."""
         while True:
             print(f"Elevator {self.id} is handling calls...")
             yield self.env.timeout(0)
@@ -142,10 +105,10 @@ class Elevator:
                 self._switch_direction()
 
     def enqueue(self, call):
-        """Enqueues the given call in the Elevator's call pipe.
+        """Enqueue the given call in the Elevator's call pipe.
 
         Main public interface for receiving calls.
-        Whenever this method is invoked (presumably by Building), the given
+        Whenever this method is invoked (should be by Building), the given
         call is placed into the call pipe to await further processing.
         """
         self.call_queue.put(call)
@@ -220,9 +183,9 @@ class Elevator:
         print_status(self.env.now, f"Elevator {self.id} switched directions.")
 
     def _pick_up(self):
-        """Picks up as many passengers as possible on the current floor.
+        """Pick up as many passengers as possible on the current floor.
 
-        Picks up as many passengers as the Elevator's capacity allows. If the
+        Pick up as many passengers as the Elevator's capacity allows. If the
         Elevator reaches maximum capacity, passengers are left on the current
         floor to be handled at a later time.
         """
@@ -264,10 +227,10 @@ class Elevator:
                      f"{self.curr_floor}, capacity now {self.curr_capacity}")
 
 
-class CallTree:
-    """Maintain calls to be handled by the Elevator class as a tree.
+class CallManager:
+    """Maintain unhandled calls of an elevator.
 
-    Calls are maintained as follows:
+    Calls are organized as a tree shown below:
 
                         ALL CALLS
                         /      \
@@ -288,13 +251,16 @@ class CallTree:
     UNREACHABLE -- calls that cannot be accessed without breaking SCAN*
 
     Leaf nodes of the tree (DROP-OFFS, REACHABLE, UNREACHABLE) are implemented
-    as dictionaries mapping floor number to specific Call class instance.
+    as dictionaries mapping floor number to a queue of Call instances.
 
-    (* SCAN denotes the SCAN algorithm, the basic call-handling process
-    employed by each elevator.)
+    (* SCAN denotes the SCAN algorithm as explained in Elevator class
+    documentation.)
     """
-    def __init__(self):
-        """Create an empty CallTree."""
+    def __init__(self, num_floors):
+        """Create an empty CallManager.
+
+        num_floors -- number of floors in building
+        """
         self.all_calls = {
             "pickups": {
                 "up": {
@@ -306,8 +272,15 @@ class CallTree:
                     "unreachable": {},
                 },
             },
-            "dropoffs": {}
+            "dropoffs": {},
         }
+        for i in range(1, num_floors + 1):
+            self.all_calls["pickups"]["up"]["reachable"][i] = deque()
+            self.all_calls["pickups"]["up"]["unreachable"][i] = deque()
+            self.all_calls["pickups"]["down"]["reachable"][i] = deque()
+            self.all_calls["pickups"]["down"]["unreachable"][i] = deque()
+            self.all_calls["dropoffs"][i] = deque()
+
 
 
 

@@ -1,5 +1,6 @@
 import simpy
 from random import randint
+from elevator.elevators import Elevator
 from elevator.utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
@@ -9,68 +10,26 @@ class Building(ABC):
 
     (more documentation)
     """
-    def __init__(self, num_floors, elevators):
+    def __init__(self, env, num_floors, num_elevators):
         """
         Create a building with a
         """
-        self.env = None
-        self.call_generator = None
-        self.call_assigner = None
-        self.call_queue = None
+        self.env = env
+        self.call_generator = self.env.process(self._generate_calls())
+        self.call_assigner = self.env.process(self._assign_calls())
+        self.call_queue = simpy.Store(self.env)
         self.call_history = []
-        if num_floors < 1:
-            raise Exception("Building was initialized with less than 1 floor.")
         self.num_floors = num_floors
-        self.elevators = elevators
-        self.num_elevators = len(elevators)
-        self.floor_queues = self._init_floor_queues()
+        self.elevators = self._init_elevators(num_elevators)
         self.service_ranges = self._init_service_ranges()
 
-    def set_env(self, env):
-        if self.env:
-            raise Exception("Attempted to set environment for Building "
-                            "which already had an environment.")
-        else:
-            self.env = env
+        self.floor_queues = self._init_floor_queues()
 
-    def init_call_queue(self):
-        if not self.env:
-            raise Exception("Attempted to initialize call queue for Elevator "
-                            "with no environment.")
-        if self.call_queue:
-            raise Exception("Attempted to initialize call queue for Elevator "
-                            "that already had a call queue.")
-        else:
-            self.call_queue = simpy.Store(self.env)
-
-    def init_call_generator(self):
-        if not self.env:
-            raise Exception("Attempted to initialize call generator to a "
-                            "Building with no environment.")
-        if self.call_generator:
-            raise Exception("Attempted to initialize call generator to a "
-                            "Building that already had a call generator.")
-        else:
-            self.call_generator = self.env.process(self._generate_calls())
-
-    def init_call_assigner(self):
-        if not self.env:
-            raise Exception("Attempted to initialize call assigner to a "
-                            "Building with no environment.")
-        if self.call_assigner:
-            raise Exception("Attempted to initialize call assigner to a "
-                            "Building that already had an call handler.")
-        else:
-            self.call_assigner = self.env.process(self._assign_calls())
-
-    def init_elevators(self):
-        self._assign_elevator_ids()
-        for elevator in self.elevators:
-            elevator.set_env(self.env)
-            elevator.init_call_handler()
-            elevator.init_call_awaiter()
-            elevator.init_call_queue()
-            elevator.init_call_pipe()
+    def _init_elevators(self, num_elevators):
+        elevators = []
+        for i in range(num_elevators):
+            elevators.append(Elevator(self, self.env, i))
+        return elevators
 
     def _init_floor_queues(self):
         queues = {}
