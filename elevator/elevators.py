@@ -1,7 +1,7 @@
 from collections import deque
 
 import simpy
-from src.utils import print_status, UP, DOWN, IDLE
+from elevator.utils import print_status, UP, DOWN, IDLE
 
 
 class Elevator:
@@ -237,7 +237,7 @@ class Elevator:
             call = self.active_map.pop_next_pickup(self.curr_floor)
             if call.origin != self.curr_floor:
                 raise Exception(f"Attempted to pick up Call {call.id} at"
-                                f"wrong origin.")
+                                f"wrong source.")
             call.picked_up(self.env.now)
             self.curr_capacity += 1
             self.active_map.enqueue_dropoff(call)
@@ -266,27 +266,26 @@ class Elevator:
 
 class CallQueue:
     def __init__(self):
-        """Maintains calls to be handled by an Elevator.
+        """Maintain calls to be handled by the Elevator class.
 
-        To be used by the Elevator class as it handles assigned calls.
         The way calls are organized can be visualized as a tree, shown below:
 
                         ALL CALLS
                         /      \
-                 PICKUPS        DROP-OFFS
-                  /  \              /  \
-           UP CALLS  DOWN CALLS  VALID INVALID
-             / \           / \
-        VALID  INVALID  VALID INVALID
+                  PICKUPS      DROP-OFFS
+                    /  \
+                 UP     DOWN
+               / \        / \
+         VALID INVALID VALID INVALID
 
         where:
-        ALL CALLS denote all calls assigned to the elevator.
-        PICKUPS denote all pickup requests to be handled by the elevator.
-        DROP-OFFS denote all drop-off requests to be handled by the elevator.
-        UP CALLS denote all upward-headed calls.
-        DOWN CALLS denote all downward-headed calls.
-        VALID denotes calls that can be accessed without breaking SCAN*.
-        INVALID denotes calls that cannot be accessed without breaking SCAN*.
+        ALL CALLS  -- all calls assigned to the elevator.
+        PICKUPS -- pickup requests to be handled by the elevator.
+        DROP-OFFS -- drop-off requests to be handled by the elevator.
+        UP CALLS -- upward-headed calls.
+        DOWN CALLS -- downward-headed calls.
+        VALID -- calls that can be accessed without breaking SCAN*.
+        INVALID -- calls that cannot be accessed without breaking SCAN*.
 
         (* SCAN denotes the SCAN algorithm, the basic call-handling process
         employed by each elevator.)

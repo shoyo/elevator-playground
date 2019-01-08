@@ -1,6 +1,6 @@
 import simpy
 from random import randint
-from src.utils import print_status, rand_call
+from elevator.utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 
@@ -90,7 +90,7 @@ class Building(ABC):
 
     @abstractmethod
     def _generate_calls(self):
-        """ Periodically generates a random call from an origin floor to a
+        """ Periodically generates a random call from an source floor to a
         destination floor and places call into the call queue. """
 
     @abstractmethod
@@ -123,7 +123,7 @@ class BasicBuilding(Building):
 
     def _generate_single_call(self):
         call = rand_call(self.env.now, self.num_floors)
-        print_status(self.env.now, f"[Generate] call {call.id}: floor {call.origin} to {call.dest}")
+        print_status(self.env.now, f"[Generate] call {call.id}: floor {call.source} to {call.dest}")
         return call
 
     def _assign_calls(self):

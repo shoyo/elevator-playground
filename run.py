@@ -1,12 +1,13 @@
-from src.elevators import Elevator
-from src.buildings import BasicBuilding
-from src.session import Session
+from elevator.elevators import Elevator
+from elevator.buildings import BasicBuilding
+from elevator.session import Session
 import random
 
 RANDOM_SEED = 1
 
 
 def run_simulation():
+    """Set up simulation parameters and run the simulation."""
     random.seed(RANDOM_SEED)
     elevators = [
         Elevator(),
