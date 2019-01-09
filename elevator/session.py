@@ -1,20 +1,9 @@
-import simpy
-
-
 class Session:
-    """Responsible for setting up simulation environment for a Building
-    containing Elevator(s) and calculating simulation results.
-    """
-
+    """A session that runs a simulation and outputs results. """
     def __init__(self, building, runtime=36000):
+        self.env = building.env
         self.building = building
         self.total_runtime = runtime
-        self.env = simpy.Environment()
-        self.building.set_env(self.env)
-        self.building.init_call_generator()
-        self.building.init_call_assigner()
-        self.building.init_call_queue()
-        self.building.init_elevators()
 
     def run(self):
         if not self._valid_session():
@@ -29,47 +18,10 @@ class Session:
             # self._disp_metrics()
 
     def _valid_session(self):
-        if self.total_runtime <= 0:
-            print("Session has runtime less than or equal to 0.")
+        if self.env and self.building and self.total_runtime:
+            return True
+        else:
             return False
-        if not self.env:
-            print("Session does not has an environment.")
-            return False
-        if not self.building:
-            print("Session does not have a building.")
-            return False
-        if not self.building.env:
-            print("Building does not have an environment.")
-            return False
-        if not self.building.call_queue:
-            print("Building does not have a call queue.")
-            return False
-        if not self.building.call_generator or not self.building.call_assigner:
-            print("Building does not have a call generator or assigner.")
-            return False
-        if not self.building.elevators:
-            print("Building does not have elevators.")
-            return False
-        for elevator in self.building.elevators:
-            if not elevator.env or elevator.id is None:
-                print("An Elevator does not have an environment or ID.")
-                return False
-            if not elevator.call_handler:
-                print("An Elevator does not have a call handler.")
-                return False
-            if not elevator.call_awaiter:
-                print("An Elevator does not have a call awaiter.")
-                return False
-            if not elevator.call_queue:
-                print("An Elevator does not have a call queue.")
-                return False
-            if not elevator.service_range:
-                print("An Elevator does not have a service range.")
-                return False
-            if not elevator.active_map or not elevator.defer_map:
-                print("An Elevator did not have its maps initialized.")
-                return False
-        return True
 
     def _disp_metrics(self):
         # TODO: Maybe make this more efficient

@@ -1,3 +1,6 @@
+"""Utility objects for running elevator simulation."""
+
+
 from random import sample
 
 

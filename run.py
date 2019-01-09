@@ -9,9 +9,8 @@ RANDOM_SEED = 1
 def run_simulation():
     """Set up simulation parameters and run the simulation."""
     random.seed(RANDOM_SEED)
-    env = simpy.Environment()
-    building = BasicBuilding(env, 10, 1)
-    session = Session(env, building, 36000)
+    building = BasicBuilding(10, 1)
+    session = Session(building, 36000)
     session.run()
 
 

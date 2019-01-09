@@ -4,8 +4,16 @@ import simpy
 from elevator.utils import print_status, UP, DOWN, IDLE
 
 
+# -- Error Handling --
+class ServiceRangeError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+# ----
+
+
 class Elevator:
-    """Continuously handles calls assigned to it by its Building.
+    """Continuously handle calls assigned to it by its Building.
 
     An Elevator follows the SCAN algorithm:
     1) While there are people in the elevator or calls waiting in the current
@@ -42,10 +50,10 @@ class Elevator:
         service direction -- current direction of service (1 denotes UP,
                              -1 denotes DOWN, 0 denotes IDLE)
         curr capacity     -- current capacity
-        service range     -- range of floors that the elevator is expected to
-                             serve
-        upper bound       -- upper bound of service range
-        lower bound       -- lower bound of service range
+        upper bound       -- highest floor that is accessible (set by building
+                             during runtime)
+        lower bound       -- lowest floor that is accessible (set by building
+                             during runtime)
         max capacity      -- maximum capacity
         pickup duration   -- time* it takes to pick up 1 passenger
         dropoff duration  -- time* it takes to drop off 1 passenger
@@ -65,59 +73,53 @@ class Elevator:
         self.call_queue = CallManager(building.num_floors)
         self.call_pipe = simpy.Store()
 
-        # Parameters that can change constantly
+        # Attributes that can change constantly
         self.curr_floor = 1
         self.dest_floor = None
         self.service_direction = IDLE
         self.curr_capacity = 0
-        self.service_range = None
         self.upper_bound = None
         self.lower_bound = None
 
-        # Parameters that don't change
+        # Attributes that don't change
         self.max_capacity = capacity
         self.pickup_duration = 30
         self.dropoff_duration = 30
         self.f2f_time = 100
-        self.directional_pref = UP # preferred direction of travel when IDLE and requests exist above and below
+        self.directional_pref = UP
+
+    def set_service_range(self, lower, upper):
+        """Set upper and lower bound of travel."""
+        if lower > upper:
+            raise ServiceRangeError("Lower bound greater than upper bound.")
+        self.upper_bound = upper
+        self.lower_bound = lower
 
     def _handle_calls(self):
         """Continuously handle calls while there are calls to be handled."""
         while True:
             print(f"Elevator {self.id} is handling calls...")
             yield self.env.timeout(0)
-            while self.active_map and not self.active_map.is_empty():
-                # if (self.curr_floor == self.upper_bound
-                #         or self.curr_floor == self.lower_bound):
-                #     raise Exception(f"Elevator {self.id} had unhandled "
-                #                     f"calls despite reaching its boundary."
-                #                     f" This may have been caused due to "
-                #                     f"limited capacity of Elevator.")
-                # TODO: Handle limited capacity instead of raising exception
-                next_stop = self.active_map.next_stop(self.curr_floor,
-                                                      self.service_direction,
-                                                      self.directional_pref)
-                self._move_to(next_stop)
-                self._drop_off()
-                self._pick_up()
-            if not self.defer_map.is_empty():
-                self.active_map = self.defer_map
-                self._switch_direction()
+            while not self.call_queue.is_empty():
+                pass
+
+
+
 
     def enqueue(self, call):
-        """Enqueue the given call in the Elevator's call pipe.
+        """Enqueue the given call in the call pipe.
 
         Main public interface for receiving calls.
-        Whenever this method is invoked (should be by Building), the given
+        Whenever this method is invoked (should be by building), the given
         call is placed into the call pipe to await further processing.
         """
-        self.call_queue.put(call)
+        self.call_pipe.put(call)
 
     def _await_calls(self):
-        """Awaits for calls to be assigned.
+        """Await for calls to be assigned.
 
-        Periodically checks the call pipe for any assigned calls, and
-        recalibrates the call queue when a call is found.
+        Periodically check the call pipe for any assigned calls, and
+        recalibrate the call queue when a call is found.
         """
         while True:
             print(f"Elevator {self.id} is awaiting calls...")
@@ -126,7 +128,7 @@ class Elevator:
             self._recalibrate(call)
 
     def _recalibrate(self, call):
-        """Recalibrates the call queue by adding the given call accordingly."""
+        """Add the given call to the call queue."""
         print(f"Elevator {self.id} is recalibrating...")
         if self.service_direction == IDLE:
             if call.direction == self.directional_pref:
@@ -173,6 +175,7 @@ class Elevator:
         yield self.env.timeout(self.dropoff_duration)
 
     def _switch_direction(self):
+        """Switch direction of travel."""
         if self.service_direction == IDLE:
             raise Exception("Attempted to switch direction when Elevator was "
                             "idle.")
@@ -210,7 +213,7 @@ class Elevator:
                      f", capacity now {self.curr_capacity}")
 
     def _drop_off(self):
-        """Drops off all passengers waiting to get off at current floor."""
+        """Drop off all passengers waiting to get off at current floor."""
         if self.curr_capacity == 0:
             raise Exception("Nobody on elevator to drop off")
 
@@ -280,6 +283,8 @@ class CallManager:
             self.all_calls["pickups"]["down"]["reachable"][i] = deque()
             self.all_calls["pickups"]["down"]["unreachable"][i] = deque()
             self.all_calls["dropoffs"][i] = deque()
+
+
 
 
 

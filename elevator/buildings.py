@@ -10,45 +10,36 @@ class Building(ABC):
 
     (more documentation)
     """
-    def __init__(self, env, num_floors, num_elevators):
+    def __init__(self, num_floors, num_elevators):
+        """Create a building with a
         """
-        Create a building with a
-        """
-        self.env = env
+        self.env = simpy.Environment()
         self.call_generator = self.env.process(self._generate_calls())
         self.call_assigner = self.env.process(self._assign_calls())
         self.call_queue = simpy.Store(self.env)
         self.call_history = []
         self.num_floors = num_floors
+        self.num_elevators = num_elevators
         self.elevators = self._init_elevators(num_elevators)
         self.service_ranges = self._init_service_ranges()
 
-        self.floor_queues = self._init_floor_queues()
-
     def _init_elevators(self, num_elevators):
+        """Create specified number of elevators and return them as a list."""
         elevators = []
         for i in range(num_elevators):
             elevators.append(Elevator(self, self.env, i))
         return elevators
 
-    def _init_floor_queues(self):
-        queues = {}
-        for i in range(1, self.num_floors + 1):
-            queues[i] = 0
-        return queues
-
     def _init_service_ranges(self):
+        """Set service range for each elevator."""
         ranges = {}
         for i in range(self.num_elevators):
-            service_range = (1, self.num_floors + 1)
+            lower_bound = 1
+            upper_bound = self.num_floors
+            service_range = (lower_bound, upper_bound)
             ranges[self.elevators[i]] = service_range
-            self.elevators[i].set_service_range(service_range)
+            self.elevators[i].set_service_range(lower_bound, upper_bound)
         return ranges
-
-    def _assign_elevator_ids(self):
-        """Give a unique ID number to each elevator."""
-        for i in range(self.num_elevators):
-            self.elevators[i].set_id(i)
 
     @abstractmethod
     def _generate_calls(self):
@@ -68,6 +59,9 @@ class Building(ABC):
     @abstractmethod
     def _select_elevator(self, call):
         """Judiciously select an elevator to handle a call."""
+        # I probably want an efficient way of checking global state -- where each
+        # elevator is, where they're headed, their capacities etc.
+        # Ultimately, this method is the bulk of the thinking
         pass
 
 
@@ -81,14 +75,15 @@ class BasicBuilding(Building):
             call = self._generate_single_call()
             self.call_queue.put(call)
             self.call_history.append(call)
-            self.floor_queues[call.origin] += 1
 
     def _generate_single_call(self):
+        """Return a single, random call."""
         call = rand_call(self.env.now, self.num_floors)
         print_status(self.env.now, f"[Generate] call {call.id}: floor {call.source} to {call.dest}")
         return call
 
     def _assign_calls(self):
+        """Periodically check the call queue for any calls and assign them."""
         print("Building has started assigning calls...")
         while True:
             call = yield self.call_queue.get()
@@ -96,9 +91,7 @@ class BasicBuilding(Building):
             elevator.enqueue(call)
 
     def _select_elevator(self, call):
-        # I probably want an efficient way of checking global state -- where each
-        # elevator is, where they're headed, their capacities etc.
-        # Ultimately, this method is the bulk of the thinking
+        """Select an elevator at random to handle the given call."""
         selected = self.elevators[randint(0, self.num_elevators - 1)]
         print_status(self.env.now,
                      f"[Select] call {call.id}: Elevator {selected.id}")
