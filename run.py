@@ -1,7 +1,6 @@
 from elevator.buildings import BasicBuilding
 from elevator.session import Session
 import random
-import simpy
 
 RANDOM_SEED = 1
 
@@ -9,8 +8,14 @@ RANDOM_SEED = 1
 def run_simulation():
     """Set up simulation parameters and run the simulation."""
     random.seed(RANDOM_SEED)
-    building = BasicBuilding(10, 1)
-    session = Session(building, 36000)
+
+    num_floors = 10
+    num_elevators = 1
+    total_runtime = 36000
+
+    building = BasicBuilding(num_floors, num_elevators)
+    session = Session(building, total_runtime)
+
     session.run()
 
 
