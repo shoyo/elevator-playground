@@ -1,13 +1,19 @@
 from collections import deque
 
 import simpy
-from elevator.utils import print_status, UP, DOWN, IDLE
+from elevator.utils import print_status, UP, DOWN, IDLE, merge
 
 
-# -- Error Handling --
+# -- Custom Errors --
 class ServiceRangeError(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class InvalidCallError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
 
 # ----
 
@@ -75,7 +81,6 @@ class Elevator:
 
         # Attributes that can change constantly
         self.curr_floor = 1
-        self.dest_floor = None
         self.service_direction = IDLE
         self.curr_capacity = 0
         self.upper_bound = None
@@ -100,10 +105,8 @@ class Elevator:
         while True:
             print(f"Elevator {self.id} is handling calls...")
             yield self.env.timeout(0)
-            while not self.call_queue.is_empty():
-                pass
-
-
+            while (self.call_queue.get_reachable_pickups(self.service_direction)
+                   or self.call_queue.get_dropoffs()):
 
 
     def enqueue(self, call):
@@ -130,18 +133,7 @@ class Elevator:
     def _recalibrate(self, call):
         """Add the given call to the call queue."""
         print(f"Elevator {self.id} is recalibrating...")
-        if self.service_direction == IDLE:
-            if call.direction == self.directional_pref:
-                self.active_map.set_pickup(call)
-            else:
-                self.defer_map.set_pickup(call)
-        else:
-            if self.service_direction == call.direction:
-                if (self.service_direction == UP and call.origin > self.curr_floor
-                        or self.service_direction == DOWN and call.origin < self.curr_floor):
-                    self.active_map.set_pickup(call)
-            else:
-                self.defer_map.set_pickup(call)
+        self.call_queue.add(call, self.service_direction, self.curr_floor)
 
     def _start_moving(self, direction):
         self.service_direction = direction
@@ -259,35 +251,84 @@ class CallManager:
     (* SCAN denotes the SCAN algorithm as explained in Elevator class
     documentation.)
     """
+
     def __init__(self, num_floors):
         """Create an empty CallManager.
 
-        num_floors -- number of floors in building
+        num_floors -- number of floors in building (range assumed to be 1 to
+                      num_floors)
         """
+        self.lower_bound = 1
+        self.upper_bound = num_floors
         self.all_calls = {
-            "pickups": {
-                "up": {
-                    "reachable": {},
-                    "unreachable": {},
+            # pickups
+            1: {
+                # upward-headed
+                1: {
+                    # reachable
+                    1: {},
+                    # unreachable
+                    0: {},
                 },
-                "down": {
-                    "reachable": {},
-                    "unreachable": {},
+                # downward-headed calls
+                0: {
+                    # reachable
+                    1: {},
+                    # unreachable
+                    0: {},
                 },
             },
-            "dropoffs": {},
+            # dropoffs
+            0: {},
         }
         for i in range(1, num_floors + 1):
-            self.all_calls["pickups"]["up"]["reachable"][i] = deque()
-            self.all_calls["pickups"]["up"]["unreachable"][i] = deque()
-            self.all_calls["pickups"]["down"]["reachable"][i] = deque()
-            self.all_calls["pickups"]["down"]["unreachable"][i] = deque()
-            self.all_calls["dropoffs"][i] = deque()
+            self.all_calls[1][1][1][i] = deque()
+            self.all_calls[1][1][0][i] = deque()
+            self.all_calls[1][0][1][i] = deque()
+            self.all_calls[1][0][0][i] = deque()
+            self.all_calls[0][i] = deque()
 
+    def get_reachable_pickups(self, direction):
+        """Return all reachable pickups."""
+        return self.all_calls[1][self._bitify(direction)][1]
 
+    def get_dropoffs(self):
+        """Return all dropoffs."""
+        return self.all_calls[0]
 
+    def get_reachable_calls(self, direction):
+        """Return all reachable pickups and dropoffs as a merged dictionary."""
+        pickups = self.get_reachable_pickups(direction)
+        dropoffs = self.get_dropoffs()
+        return merge(pickups, dropoffs)
 
+    def _in_range(self, floor):
+        """Return True if floor is maintained by self. False otherwise."""
+        return self.lower_bound <= floor <= self.upper_bound
 
+    def _bitify(self, direction):
+        """Return 1 if direction is UP (=1), 0 if direction is DOWN (=-1)."""
+        if direction == UP:
+            return 1
+        elif direction == DOWN:
+            return 0
+        else:
+            raise Exception("Can only bitify 1 or -1.")
 
+    def add(self, call, direction, curr_floor):
+        """Add call to the CallManager tree.
 
-
+        call       -- Call instance to be added
+        direction  -- current direction of travel
+        curr_floor -- current floor
+        """
+        if (direction is not UP or direction is not DOWN
+                or not self._in_range(call.origin)):
+            raise InvalidCallError("Call could not be added to CallManager.")
+        direction_bit = self._bitify(direction)
+        if (call.origin > curr_floor and direction == UP
+                or call.origin < curr_floor and direction == DOWN):
+            reachable_bit = 1
+        else:
+            reachable_bit = 0
+        self.all_calls[1][direction_bit][reachable_bit][call.origin] = call

@@ -1,4 +1,4 @@
-"""Utility objects for running elevator simulation."""
+"""Utility objects for running the elevator simulation."""
 
 
 from random import sample
@@ -89,3 +89,29 @@ def rand_call(time, floor_upper_bound, floor_lower_bound=1):
     # TODO: (ex. uppeak/downpeak traffic, base floor congestion etc.).
     source, dest = sample([i for i in range(floor_lower_bound, floor_upper_bound + 1)], 2)
     return Call(source, dest, time)
+
+
+# Deprecated
+def merge(dict1, dict2):
+    """Return a merged dictionary containing all items in dict1 and dict2.
+
+    Keys can be any data type, values are assumed to be collections.deque
+    instances.
+
+    Example:
+    >>> from collections import deque
+    >>> a = {"a": deque([1]), "b": deque([4])}
+    >>> b = {"b": deque([3]), "c": deque([2])}
+    >>> merge(a, b)
+    {"a": deque([1]), "b": deque([4, 3]), "c": deque([2])}
+    """
+    ret = {}
+    for key in dict1:
+        ret[key] = dict1[key]
+    for key in dict2:
+        if key in ret:
+            ret[key].extend(dict2[key])
+        else:
+            ret[key] = dict2[key]
+    return ret
+

@@ -18,10 +18,7 @@ class Session:
             # self._disp_metrics()
 
     def _valid_session(self):
-        if self.env and self.building and self.total_runtime:
-            return True
-        else:
-            return False
+        return self.env and self.building and self.total_runtime
 
     def _disp_metrics(self):
         # TODO: Maybe make this more efficient
