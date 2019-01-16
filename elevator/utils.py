@@ -1,9 +1,10 @@
-"""Utility objects for running the elevator simulation."""
+"""Utilities for running the elevator simulation."""
 
 
 from random import sample
 
 
+# -- Outputting simulation state --
 def frame_to_time(frames):
     """Converts frames (10 fps) into corresponding string ' hh:mm:ss:msms'.
 
@@ -35,8 +36,26 @@ def frame_to_time(frames):
 
 def print_status(time, status):
     print(f"{frame_to_time(time)} - {status}")
+# ----
 
 
+# -- Elevator travel directions --
+UP = 1
+DOWN = -1
+
+
+def bitify(direction):
+    """Return 1 if direction is UP (=1), 0 if direction is DOWN (=-1)."""
+    if direction == UP:
+        return 1
+    elif direction == DOWN:
+        return 0
+    else:
+        raise Exception("Can only bitify 1 or -1.")
+# ----
+
+# ---- Calls ----
+# -- ID generator for Call class --
 def id_generator():
     id = 1
     while True:
@@ -45,10 +64,7 @@ def id_generator():
 
 
 id_gen = id_generator()
-
-UP = 1
-DOWN = -1
-IDLE = 0
+# ----
 
 
 class Call:
@@ -89,29 +105,5 @@ def rand_call(time, floor_upper_bound, floor_lower_bound=1):
     # TODO: (ex. uppeak/downpeak traffic, base floor congestion etc.).
     source, dest = sample([i for i in range(floor_lower_bound, floor_upper_bound + 1)], 2)
     return Call(source, dest, time)
-
-
-# Deprecated
-def merge(dict1, dict2):
-    """Return a merged dictionary containing all items in dict1 and dict2.
-
-    Keys can be any data type, values are assumed to be collections.deque
-    instances.
-
-    Example:
-    >>> from collections import deque
-    >>> a = {"a": deque([1]), "b": deque([4])}
-    >>> b = {"b": deque([3]), "c": deque([2])}
-    >>> merge(a, b)
-    {"a": deque([1]), "b": deque([4, 3]), "c": deque([2])}
-    """
-    ret = {}
-    for key in dict1:
-        ret[key] = dict1[key]
-    for key in dict2:
-        if key in ret:
-            ret[key].extend(dict2[key])
-        else:
-            ret[key] = dict2[key]
-    return ret
+# --------
 
