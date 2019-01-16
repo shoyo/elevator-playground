@@ -59,9 +59,6 @@ class Building(ABC):
     @abstractmethod
     def _select_elevator(self, call):
         """Judiciously select an elevator to handle a call."""
-        # I probably want an efficient way of checking global state -- where each
-        # elevator is, where they're headed, their capacities etc.
-        # Ultimately, this method is the bulk of the thinking
         pass
 
 

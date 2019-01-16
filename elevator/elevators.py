@@ -1,5 +1,4 @@
 from collections import deque
-from typing import List, Any
 
 import simpy
 from elevator.utils import print_status, bitify, UP, DOWN
@@ -112,8 +111,8 @@ class Elevator:
     def _handle_calls(self):
         """Continuously handle calls while there are calls to be handled."""
         while True:
-            print(f"Elevator {self.id} is handling calls...")
-            yield self.env.timeout(0)
+            print_status(self.env.now, f"Elevator {self.id} is handling calls...")
+            yield self.env.timeout(1)
             while (self.call_queue.get_reachable_pickups(self.direction)
                    or self.call_queue.get_dropoffs()):
                 next_floor = self.call_queue.next_floor(self.direction)
@@ -296,29 +295,33 @@ class CallManager:
         direction  -- current direction of travel
         curr_floor -- current floor
         """
-        if (direction is not UP or direction is not DOWN
-                or not self._in_range(call.origin)):
-            raise InvalidCallError("Call could not be added to CallManager.")
+        if direction is not UP and direction is not DOWN:
+            raise InvalidCallError("Invalid direction. Call could not be "
+                                   "added to CallManager.")
+        if not self._in_range(call.source):
+            raise InvalidCallError("Out of range. Call could not be added "
+                                   "to CallManager.")
         if call.direction != direction:
             # add call to opposite direction, reachable
-            tmp = self._all_calls[1][bitify(call.direction)][1][call.origin]
-            if tmp:
-                tmp[call.origin].append(call)
-            else:
-                tmp[call.origin] = deque([call])
+            tmp = self._all_calls[1][bitify(call.direction)][1]
+            try:
+                tmp[call.source].append(call)
+            except KeyError:
+                tmp[call.source] = deque([call])
         else:
             # add call to same direction, reachable or unreachable
             direction_bit = bitify(direction)
-            if (call.origin > curr_floor and direction == UP
-                    or call.origin < curr_floor and direction == DOWN):
+            if (call.source > curr_floor and direction == UP
+                    or call.source < curr_floor and direction == DOWN):
                 reachable_bit = 1
             else:
                 reachable_bit = 0
-            tmp = self._all_calls[1][direction_bit][reachable_bit][call.origin]
-            if tmp:
-                tmp[call.origin].append(call)
-            else:
-                tmp[call.origin] = deque([call])
+            tmp = self._all_calls[1][direction_bit][reachable_bit]
+            try:
+                tmp[call.source].append(call)
+            except KeyError:
+                tmp[call.source] = deque([call])
+
 
     def next_pickup(self, direction, curr_floor):
         """Pop and return the next pickup at given direction and floor.

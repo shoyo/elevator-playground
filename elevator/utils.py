@@ -54,6 +54,7 @@ def bitify(direction):
         raise Exception("Can only bitify 1 or -1.")
 # ----
 
+
 # ---- Calls ----
 # -- ID generator for Call class --
 def id_generator():
