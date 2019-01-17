@@ -4,28 +4,6 @@ import simpy
 from elevator.utils import print_status, bitify, UP, DOWN
 
 
-# -- Custom Errors --
-class ServiceRangeError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class InvalidCallError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class InvalidFloorError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
-
-class InvalidDirectionError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-# ----
-
-
 class Elevator:
     """Continuously handle calls assigned to it by its Building.
 
@@ -35,7 +13,7 @@ class Elevator:
        as necessary.
     2) Once the elevator has serviced all calls in its current direction,
        reverse direction and go to step (1) if there are calls. Otherwise, stop
-       and wait for a call (or move to another floor deemed more effective)
+       and wait for a call (or move to a "waiting floor")
 
     An Elevator maintains all un-handled calls in a call queue (an instance
     of the CallQueue class, defined further below). The Elevator continuously
@@ -132,7 +110,7 @@ class Elevator:
         self.call_pipe.put(call)
 
     def _await_calls(self):
-        """Await for calls to be assigned.
+        """Wait for calls to be assigned and recalibrate as they arrive.
 
         Periodically check the call pipe for any assigned calls, and
         recalibrate the call queue when a call is found.
@@ -146,28 +124,26 @@ class Elevator:
         """Add the given call to the call queue."""
         self.call_queue.add(call, self.direction, self.floor)
 
-    def _move_to(self, target_floor):
-        """Move to target floor."""
-        if (target_floor is None
-                or not (self.lower_bound <= target_floor <= self.upper_bound)):
-            raise InvalidFloorError("Cannot move to specified floor.")
-        print_status(self.env.now, f"Elevator {self.id} started moving to {target_floor}")
-        if target_floor - self.floor > 0:
-            step = 1
-        else:
-            step = -1
-        while self.floor != target_floor:
-            self.env.process(self._move_one_floor())
-            self.floor += step
-        print_status(self.env.now, f"Elevator {self.id} arrived at floor {self.floor}")
-
     def _switch_service_direction(self):
         """Switch service direction."""
         if self.direction == UP:
             self.direction = DOWN
         else:
             self.direction = UP
-        print_status(self.env.now, f"Elevator {self.id} switched directions.")
+
+    def _move_to(self, target_floor):
+        """Move to target floor."""
+        if (target_floor is None
+                or not (self.lower_bound <= target_floor <= self.upper_bound)):
+            raise InvalidFloorError("Cannot move to specified floor.")
+        print_status(self.env.now, f"Elevator {self.id} started moving to {target_floor}")
+        n = target_floor - self.floor
+        if n > 0:
+            step = 1
+        else:
+            step = -1
+        self.env.process(self._move_n_floors(abs(n), step))
+        print_status(self.env.now, f"Elevator {self.id} is now at floor {self.floor}")
 
     def _pick_up(self):
         """Pick up as many passengers as possible on the current floor.
@@ -183,8 +159,8 @@ class Elevator:
                 break
             call = self.call_queue.next_pickup(self.direction, self.floor)
             call.picked_up(self.env.now)
-            self.curr_capacity += 1
             self.env.process(self._pickup_single_passenger())
+            self.curr_capacity += 1
             print_status(self.env.now,
                          f"(pick up) Elevator {self.id} at floor {self.floor}"
                          f", capacity now {self.curr_capacity}")
@@ -199,6 +175,12 @@ class Elevator:
             print_status(self.env.now,
                          f"(drop off) Elevator {self.id} at floor "
                          f"{self.floor}, capacity now {self.curr_capacity}")
+
+    def _move_n_floors(self, n, step):
+        """Traverse n floors and elapse time accordingly."""
+        for _ in range(n):
+            self.floor += step
+            yield self.env.timeout(self.f2f_time)
 
     def _move_one_floor(self):
         """Elapse time required to move one floor."""
@@ -391,9 +373,12 @@ class CallManager:
             return f(all_floors)
 
     def swap_reachable(self, direction):
-        """Swap reachable and unreachable pickups for given direction."""
+        """Swap reachable and unreachable pickups for given direction.
+
+        Called when elevator switches direction. For preparing reachable calls
+        in advance for the next cycle."""
         d_bit = bitify(direction)
-        self._all_calls[1][d_bit][1], self._all_calls[1][d_bit][0]\
+        self._all_calls[1][d_bit][1], self._all_calls[1][d_bit][0] \
             = self._all_calls[1][d_bit][0], self._all_calls[1][d_bit][1]
 
     def reject_reachable(self, direction, curr_floor):
@@ -404,6 +389,28 @@ class CallManager:
         cycle.
         """
         d_bit = bitify(direction)
-        self._all_calls[1][d_bit][0][curr_floor]\
+        self._all_calls[1][d_bit][0][curr_floor] \
             .extend(self._all_calls[1][d_bit][1][curr_floor])
         del self._all_calls[1][d_bit][1][curr_floor]
+
+
+# -- Custom Errors --
+class ServiceRangeError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class InvalidCallError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class InvalidFloorError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class InvalidDirectionError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+# ----

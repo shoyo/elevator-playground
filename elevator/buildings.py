@@ -6,10 +6,7 @@ from abc import ABC, abstractmethod
 
 
 class Building(ABC):
-    """A building containing elevators that handles randomly generated calls.
-
-    (more documentation)
-    """
+    """A building containing elevators that handles generated calls."""
     def __init__(self, num_floors, num_elevators):
         """Create a building with a
         """
