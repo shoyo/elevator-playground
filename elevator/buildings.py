@@ -66,7 +66,7 @@ class BasicBuilding(Building):
     """A building that assigns calls randomly."""
 
     def _generate_calls(self):
-        print("Building has started generating calls...")
+        print_status(self.env.now, f"Building has started generating calls...")
         while True:
             yield self.env.timeout(randint(30, 30))
             call = self._generate_single_call()
@@ -76,12 +76,13 @@ class BasicBuilding(Building):
     def _generate_single_call(self):
         """Return a single, random call."""
         call = rand_call(self.env.now, self.num_floors)
-        print_status(self.env.now, f"[Generate] call {call.id}: floor {call.source} to {call.dest}")
+        print_status(self.env.now, f"[Generate] call {call.id}:"
+                                   f" floor {call.source} to {call.dest}")
         return call
 
     def _assign_calls(self):
         """Periodically check the call queue for any calls and assign them."""
-        print("Building has started assigning calls...")
+        print_status(self.env.now, "Building has started assigning calls...")
         while True:
             call = yield self.call_queue.get()
             elevator = self._select_elevator(call)

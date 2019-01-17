@@ -59,8 +59,7 @@ class Elevator:
                              call pipe
         call queue        -- structure for maintaining unhandled calls
         call pipe         -- queue that holds assigned calls
-        curr floor        -- current floor
-        dest floor        -- destination floor
+        floor             -- current floor
         direction         -- current direction of service (1 denotes UP,
                              -1 denotes DOWN)
         curr capacity     -- current capacity
@@ -72,8 +71,6 @@ class Elevator:
         pickup duration   -- time* it takes to pick up 1 passenger
         dropoff duration  -- time* it takes to drop off 1 passenger
         f2f time          -- time* it takes to travel between adjacent floors
-        directional pref  -- default direction of travel when idling and calls
-                             exist above and below
 
         (*Unit is 0.1 seconds. Example: 75 -> 7.5 in-simulation seconds)
 
@@ -88,7 +85,7 @@ class Elevator:
         self.call_pipe = simpy.Store(env)
 
         # Attributes that can change constantly
-        self.curr_floor = 1
+        self.floor = 1
         self.direction = UP
         self.curr_capacity = 0
         self.upper_bound = None
@@ -99,7 +96,6 @@ class Elevator:
         self.pickup_duration = 30
         self.dropoff_duration = 30
         self.f2f_time = 100
-        self.directional_pref = UP
 
     def set_service_range(self, lower, upper):
         """Set upper and lower bound of travel."""
@@ -111,19 +107,20 @@ class Elevator:
     def _handle_calls(self):
         """Continuously handle calls while there are calls to be handled."""
         while True:
-            print_status(self.env.now, f"Elevator {self.id} is handling calls...")
             yield self.env.timeout(1)
-            while (self.call_queue.get_reachable_pickups(self.direction)
-                   or self.call_queue.get_dropoffs()):
-                next_floor = self.call_queue.next_floor(self.direction)
-                self._move_to(next_floor)
+            while True:
+                next_stop = self.call_queue.next_stop(self.direction)
+                if next_stop is None:
+                    break
+                self._move_to(next_stop)
                 self._drop_off()
                 self._pick_up()
             if self.call_queue.get_reachable_pickups(-self.direction):
-                self._switch_service_direction()
-                edge = self.call_queue.edge_floor(self.direction)
-                self._move_to(edge)
                 self.call_queue.swap_reachable(self.direction)
+                self._switch_service_direction()
+                start = self.call_queue.next_stop(-self.direction)
+                if start:
+                    self._move_to(start)
 
     def enqueue(self, call):
         """Enqueue the given call in the call pipe.
@@ -141,22 +138,67 @@ class Elevator:
         recalibrate the call queue when a call is found.
         """
         while True:
-            print(f"Elevator {self.id} is awaiting calls...")
             call = yield self.call_pipe.get()
-            print(f"Elevator {self.id} was assigned a call!")
+            print_status(self.env.now, f"Elevator {self.id} received call {call.id} at floor {self.floor}")
             self._recalibrate(call)
 
     def _recalibrate(self, call):
         """Add the given call to the call queue."""
-        print(f"Elevator {self.id} is recalibrating...")
-        self.call_queue.add(call, self.direction, self.curr_floor)
+        self.call_queue.add(call, self.direction, self.floor)
 
     def _move_to(self, target_floor):
         """Move to target floor."""
-        print_status(self.env.now, f"Elevator {self.id} to {target_floor}")
-        while self.curr_floor != target_floor:
-            self.env.run(self.env.process(self._move_one_floor()))
-            self.curr_floor += self.direction
+        if (target_floor is None
+                or not (self.lower_bound <= target_floor <= self.upper_bound)):
+            raise InvalidFloorError("Cannot move to specified floor.")
+        print_status(self.env.now, f"Elevator {self.id} started moving to {target_floor}")
+        if target_floor - self.floor > 0:
+            step = 1
+        else:
+            step = -1
+        while self.floor != target_floor:
+            self.env.process(self._move_one_floor())
+            self.floor += step
+        print_status(self.env.now, f"Elevator {self.id} arrived at floor {self.floor}")
+
+    def _switch_service_direction(self):
+        """Switch service direction."""
+        if self.direction == UP:
+            self.direction = DOWN
+        else:
+            self.direction = UP
+        print_status(self.env.now, f"Elevator {self.id} switched directions.")
+
+    def _pick_up(self):
+        """Pick up as many passengers as possible on the current floor.
+
+        Pick up as many passengers as the Elevator's capacity allows. If the
+        Elevator reaches maximum capacity, passengers are left on the current
+        floor to be handled at a later time.
+        """
+        while self.call_queue.get_pickups(self.direction, self.floor):
+            if self.curr_capacity == self.max_capacity:
+                print_status(self.env.now, f"Elevator {self.id} is full.")
+                self.call_queue.reject_reachable(self.direction, self.floor)
+                break
+            call = self.call_queue.next_pickup(self.direction, self.floor)
+            call.picked_up(self.env.now)
+            self.curr_capacity += 1
+            self.env.process(self._pickup_single_passenger())
+            print_status(self.env.now,
+                         f"(pick up) Elevator {self.id} at floor {self.floor}"
+                         f", capacity now {self.curr_capacity}")
+
+    def _drop_off(self):
+        """Drop off all passengers waiting to get off at current floor."""
+        while self.call_queue.get_dropoffs(self.floor):
+            call = self.call_queue.next_dropoff(self.floor)
+            call.completed(self.env.now)
+            self.curr_capacity -= 1
+            self.env.process(self._dropoff_single_passenger())
+            print_status(self.env.now,
+                         f"(drop off) Elevator {self.id} at floor "
+                         f"{self.floor}, capacity now {self.curr_capacity}")
 
     def _move_one_floor(self):
         """Elapse time required to move one floor."""
@@ -169,47 +211,6 @@ class Elevator:
     def _dropoff_single_passenger(self):
         """Elapse time required to drop off one passenger."""
         yield self.env.timeout(self.dropoff_duration)
-
-    def _switch_service_direction(self):
-        """Switch service direction."""
-        if self.direction == UP:
-            self.direction = DOWN
-        elif self.direction == DOWN:
-            self.direction = UP
-        print_status(self.env.now, f"Elevator {self.id} switched directions.")
-
-    def _pick_up(self):
-        """Pick up as many passengers as possible on the current floor.
-
-        Pick up as many passengers as the Elevator's capacity allows. If the
-        Elevator reaches maximum capacity, passengers are left on the current
-        floor to be handled at a later time.
-        """
-        while self.call_queue.get_pickups(self.direction, self.curr_floor):
-            if self.curr_capacity == self.max_capacity:
-                print_status(self.env.now, f"Elevator {self.id} is full.")
-                self.call_queue.reject_reachable(self.direction, self.curr_floor)
-                break
-            call = self.call_queue.next_pickup(self.direction, self.curr_floor)
-            call.picked_up(self.env.now)
-            self.curr_capacity += 1
-            self.env.run(self.env.process(self._pickup_single_passenger()))
-            print_status(self.env.now,
-                         f"(pick up) Elevator {self.id} at floor {self.curr_floor}"
-                         f", capacity now {self.curr_capacity}")
-
-    def _drop_off(self):
-        """Drop off all passengers waiting to get off at current floor."""
-        if self.curr_capacity == 0:
-            raise Exception("Nobody on elevator to drop off")
-        while self.call_queue.get_dropoffs():
-            call = self.call_queue.next_dropoff(self.curr_floor)
-            call.completed(self.env.now)
-            self.curr_capacity -= 1
-            self.env.run(self.env.process(self._dropoff_single_passenger()))
-            print_status(self.env.now,
-                         f"(drop off) Elevator {self.id} at floor "
-                         f"{self.curr_floor}, capacity now {self.curr_capacity}")
 
 
 class CallManager:
@@ -273,15 +274,25 @@ class CallManager:
         }
 
     def get_pickups(self, direction, curr_floor):
-        """Return all pickups in given direction and floor."""
-        return self._all_calls[1][bitify(direction)][1][curr_floor]
+        """Return pickups for given direction and floor."""
+        try:
+            return self._all_calls[1][bitify(direction)][1][curr_floor]
+        except KeyError:
+            return None
 
-    def get_dropoffs(self):
+    def get_dropoffs(self, curr_floor):
+        """Return dropoffs for given floor."""
+        try:
+            return self._all_calls[0][curr_floor]
+        except KeyError:
+            return None
+
+    def get_all_dropoffs(self):
         """Return all dropoffs."""
         return self._all_calls[0]
 
     def get_reachable_pickups(self, direction):
-        """Return all reachable pickups."""
+        """Return all reachable pickups in given direction."""
         return self._all_calls[1][bitify(direction)][1]
 
     def _in_range(self, floor):
@@ -293,7 +304,7 @@ class CallManager:
 
         call       -- Call instance to be added
         direction  -- current direction of travel
-        curr_floor -- current floor
+        floor -- current floor
         """
         if direction is not UP and direction is not DOWN:
             raise InvalidCallError("Invalid direction. Call could not be "
@@ -311,8 +322,8 @@ class CallManager:
         else:
             # add call to same direction, reachable or unreachable
             direction_bit = bitify(direction)
-            if (call.source > curr_floor and direction == UP
-                    or call.source < curr_floor and direction == DOWN):
+            if (call.source >= curr_floor and direction == UP
+                    or call.source <= curr_floor and direction == DOWN):
                 reachable_bit = 1
             else:
                 reachable_bit = 0
@@ -322,22 +333,30 @@ class CallManager:
             except KeyError:
                 tmp[call.source] = deque([call])
 
+    def _add_dropoff(self, call):
+        """Adds given call to dropoffs."""
+        try:
+            self._all_calls[0][call.dest].append(call)
+        except KeyError:
+            self._all_calls[0][call.dest] = deque([call])
 
     def next_pickup(self, direction, curr_floor):
         """Pop and return the next pickup at given direction and floor.
 
-        Return None if there are no calls left to pick up.
+        Poppped call is then placed in dropoffs. Return None if there are no
+        calls left to pick up.
         """
         pickups = self.get_pickups(direction, curr_floor)
         try:
             call = pickups.popleft()
         except IndexError:
             return None
-        if (call.dest - curr_floor) * direction != 1:
+        if not ((call.dest - curr_floor) * direction > 0):
             raise InvalidCallError("Call destination was not in direction"
                                    " of travel.")
         if not pickups:
             del self._all_calls[1][bitify(direction)][1][curr_floor]
+        self._add_dropoff(call)
         return call
 
     def next_dropoff(self, curr_floor):
@@ -345,42 +364,31 @@ class CallManager:
 
         Return None if there are no calls left to drop off.
         """
+        dropoffs = self.get_dropoffs(curr_floor)
         try:
-            if self._all_calls[0][curr_floor]:
-                return self._all_calls[0][curr_floor].popleft()
-            else:
-                return None
+            call = dropoffs.popleft()
         except IndexError:
             return None
+        if not dropoffs:
+            del self._all_calls[0][curr_floor]
+        return call
 
-    def next_floor(self, direction):
+    def next_stop(self, direction):
         """Return the next floor that requires service."""
-        if direction == UP:
-            f = min
-        elif direction == DOWN:
-            f = max
-        else:
-            raise InvalidDirectionError("Invalid direction. "
-                                        "Cannot find next floor.")
         pickups = self.get_reachable_pickups(direction)
-        dropoffs = self.get_dropoffs()
-        all_floors = [flr for flr in pickups] + [flr for flr in dropoffs]
-        return f(all_floors)
-
-    def edge_floor(self, direction):
-        """Return highest or lowest reachable call depending on direction.
-
-        If direction is UP (= 1), return the lowest floor. If direction is
-        DOWN (= -1), return the highest floor. Called when elevator wants to
-        find starting floor when reversing direction."""
-        if direction == UP:
-            f = min
-        elif direction == DOWN:
-            f = max
+        dropoffs = self.get_all_dropoffs()
+        if not pickups and not dropoffs:
+            return None
         else:
-            raise InvalidDirectionError("Invalid direction. "
-                                        "Cannot find edge floor.")
-        return f([floor for floor in self.get_reachable_pickups(direction)])
+            if direction == UP:
+                f = min
+            elif direction == DOWN:
+                f = max
+            else:
+                raise InvalidDirectionError("Invalid direction. "
+                                            "Cannot find next floor.")
+            all_floors = [flr for flr in pickups] + [flr for flr in dropoffs]
+            return f(all_floors)
 
     def swap_reachable(self, direction):
         """Swap reachable and unreachable pickups for given direction."""
@@ -389,7 +397,7 @@ class CallManager:
             = self._all_calls[1][d_bit][0], self._all_calls[1][d_bit][1]
 
     def reject_reachable(self, direction, curr_floor):
-        """Mark all reachable calls in direction and curr_floor as unreachable.
+        """Mark all reachable calls in direction and floor as unreachable.
 
         Called when elevator cannot accommodate reachable calls for whatever
         reason (usually when full) and postpones their service until the next

@@ -11,7 +11,7 @@ def run_simulation():
 
     num_floors = 10
     num_elevators = 1
-    total_runtime = 36000
+    total_runtime = 600
 
     building = BasicBuilding(num_floors, num_elevators)
     session = Session(building, total_runtime)
