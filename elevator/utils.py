@@ -57,15 +57,16 @@ def bitify(direction):
 
 
 # ---- Calls ----
+
 # -- ID generator for Call class --
-def id_generator():
-    id = 1
+def call_id_generator():
+    call_id = 1
     while True:
-        yield id
-        id += 1
+        yield call_id
+        call_id += 1
 
 
-id_gen = id_generator()
+id_gen = call_id_generator()
 # ----
 
 
@@ -95,7 +96,7 @@ class Call:
 
 
 def rand_call(time, floor_upper_bound, floor_lower_bound=1):
-    """Generates a random elevator call.
+    """Generate a random elevator call.
 
     The generated call is initialized at time "time", with the source floor
     and destination floors between the given upper and lower bound.

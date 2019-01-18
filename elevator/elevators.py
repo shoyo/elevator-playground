@@ -32,26 +32,25 @@ class Elevator:
         capacity -- total number of passengers that elevator can hold
 
         Attributes:
-        call handler      -- simpy process for serving calls
-        call awaiter      -- simpy process for awaiting calls to be placed in
-                             call pipe
-        call queue        -- structure for maintaining unhandled calls
-        call pipe         -- queue that holds assigned calls
-        floor             -- current floor
-        direction         -- current direction of service (1 denotes UP,
-                             -1 denotes DOWN)
-        curr capacity     -- current capacity
-        upper bound       -- highest floor that is accessible (set by building
-                             during runtime)
-        lower bound       -- lowest floor that is accessible (set by building
-                             during runtime)
-        max capacity      -- maximum capacity
-        pickup duration   -- time* it takes to pick up 1 passenger
-        dropoff duration  -- time* it takes to drop off 1 passenger
-        f2f time          -- time* it takes to travel between adjacent floors
+        call handler     -- simpy process for serving calls
+        call awaiter     -- simpy process for awaiting calls to be placed in
+                            call pipe
+        call queue       -- structure for maintaining unhandled calls
+        call pipe        -- queue that holds assigned calls
+        floor            -- current floor
+        direction        -- current direction of service (1 denotes UP,
+                            -1 denotes DOWN)
+        curr capacity    -- current capacity
+        upper bound      -- highest floor that is accessible (set by building
+                            during runtime)
+        lower bound      -- lowest floor that is accessible (set by building
+                            during runtime)
+        max capacity     -- maximum capacity
+        pickup duration  -- time* it takes to pick up 1 passenger
+        dropoff duration -- time* it takes to drop off 1 passenger
+        f2f time         -- time* it takes to travel between adjacent floors
 
         (*Unit is 0.1 seconds. Example: 75 -> 7.5 in-simulation seconds)
-
         """
         self.env = env
         self.id = id_num
@@ -98,7 +97,7 @@ class Elevator:
                 self._switch_service_direction()
                 start = self.call_queue.next_stop(-self.direction)
                 if start:
-                    self._move_to(start)
+                    yield self._move_to(start)
 
     def enqueue(self, call):
         """Enqueue the given call in the call pipe.
@@ -142,7 +141,7 @@ class Elevator:
             step = 1
         else:
             step = -1
-        self.env.process(self._move_n_floors(abs(n), step))
+        self.env.run(self.env.process(self._move_n_floors(abs(n), step)))
         print_status(self.env.now, f"Elevator {self.id} is now at floor {self.floor}")
 
     def _pick_up(self):
@@ -153,7 +152,7 @@ class Elevator:
         floor to be handled at a later time.
         """
         while self.call_queue.get_pickups(self.direction, self.floor):
-            if self.curr_capacity == self.max_capacity:
+            if self.curr_capacity >= self.max_capacity:
                 print_status(self.env.now, f"Elevator {self.id} is full.")
                 self.call_queue.reject_reachable(self.direction, self.floor)
                 break
@@ -171,7 +170,7 @@ class Elevator:
             call = self.call_queue.next_dropoff(self.floor)
             call.completed(self.env.now)
             self.curr_capacity -= 1
-            self.env.process(self._dropoff_single_passenger())
+            self.env.run(self.env.process(self._dropoff_single_passenger()))
             print_status(self.env.now,
                          f"(drop off) Elevator {self.id} at floor "
                          f"{self.floor}, capacity now {self.curr_capacity}")
@@ -215,8 +214,8 @@ class CallManager:
     DROP-OFFS   -- drop-off requests to be handled by the elevator
     UP          -- upward-headed calls
     DOWN        -- downward-headed calls
-    REACHABLE   -- calls that can be accessed without breaking SCAN*
-    UNREACHABLE -- calls that cannot be accessed without breaking SCAN*
+    REACHABLE   -- calls that can be served without breaking SCAN*
+    UNREACHABLE -- calls that cannot be served without breaking SCAN*
 
     Leaf nodes of the tree (DROP-OFFS, REACHABLE, UNREACHABLE) are implemented
     as dictionaries mapping floor number to a queue of Call instances.
@@ -243,7 +242,7 @@ class CallManager:
                     # unreachable
                     0: {},
                 },
-                # downward-headed calls
+                # downward-headed
                 0: {
                     # reachable
                     1: {},
