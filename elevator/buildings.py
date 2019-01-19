@@ -65,7 +65,7 @@ class BasicBuilding(Building):
     def _generate_calls(self):
         print_status(self.env.now, f"Building has started generating calls...")
         while True:
-            yield self.env.timeout(randint(100, 100))
+            yield self.env.timeout(6000)
             call = self._generate_single_call()
             self.call_queue.put(call)
             self.call_history.append(call)

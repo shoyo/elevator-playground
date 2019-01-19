@@ -1,7 +1,7 @@
 from collections import deque
 
 import simpy
-from elevator.utils import print_status, bitify, UP, DOWN
+from elevator.utils import print_status, bitify, to_string, UP, DOWN
 
 
 class Elevator:
@@ -82,22 +82,23 @@ class Elevator:
         self.lower_bound = lower
 
     def _handle_calls(self):
-        """Continuously handle calls while there are calls to be handled."""
+        """Continuously check the call queue and handle calls."""
         while True:
             yield self.env.timeout(1)
+            # Serve all accessible calls in current direction
             while True:
                 next_stop = self.call_queue.next_stop(self.direction)
                 if next_stop is None:
                     break
-                self._move_to(next_stop)
-                self._drop_off()
-                self._pick_up()
+                yield self.env.process(self._move_to(next_stop))
+                yield self.env.process(self._drop_off())
+                yield self.env.process(self._pick_up())
+            self.call_queue.swap_reachable(self.direction)
+            # Check other direction
             if self.call_queue.get_reachable_pickups(-self.direction):
-                self.call_queue.swap_reachable(self.direction)
                 self._switch_service_direction()
-                start = self.call_queue.next_stop(-self.direction)
-                if start:
-                    yield self._move_to(start)
+                start = self.call_queue.next_stop(self.direction)
+                yield self.env.process(self._move_to(start))
 
     def enqueue(self, call):
         """Enqueue the given call in the call pipe.
@@ -131,17 +132,26 @@ class Elevator:
             self.direction = UP
 
     def _move_to(self, target_floor):
-        """Move to target floor."""
+        """Move to target floor.
+
+        Normally, target floor lies in direction of travel while elevator is
+        handling each call in a single direction. Exceptional case is when
+        elevator switches directions and moves to its new starting floor.
+        """
         if (target_floor is None
                 or not (self.lower_bound <= target_floor <= self.upper_bound)):
             raise InvalidFloorError("Cannot move to specified floor.")
-        print_status(self.env.now, f"Elevator {self.id} started moving to {target_floor}")
-        n = target_floor - self.floor
-        if n > 0:
+        print_status(self.env.now, f"Elevator {self.id} started moving"
+                                   f" {to_string(self.direction)} to"
+                                   f" {target_floor}")
+        if target_floor - self.floor > 0:
             step = 1
         else:
             step = -1
-        self.env.run(self.env.process(self._move_n_floors(abs(n), step)))
+        while self.floor != target_floor:
+            yield self.env.timeout(self.f2f_time)
+            self.floor += step
+            print(f"floor updated to {self.floor}")
         print_status(self.env.now, f"Elevator {self.id} is now at floor {self.floor}")
 
     def _pick_up(self):
@@ -158,7 +168,7 @@ class Elevator:
                 break
             call = self.call_queue.next_pickup(self.direction, self.floor)
             call.picked_up(self.env.now)
-            self.env.process(self._pickup_single_passenger())
+            yield self.env.timeout(self.pickup_duration)
             self.curr_capacity += 1
             print_status(self.env.now,
                          f"(pick up) Elevator {self.id} at floor {self.floor}"
@@ -170,28 +180,22 @@ class Elevator:
             call = self.call_queue.next_dropoff(self.floor)
             call.completed(self.env.now)
             self.curr_capacity -= 1
-            self.env.run(self.env.process(self._dropoff_single_passenger()))
+            yield self.env.timeout(self.dropoff_duration)
             print_status(self.env.now,
                          f"(drop off) Elevator {self.id} at floor "
                          f"{self.floor}, capacity now {self.curr_capacity}")
 
-    def _move_n_floors(self, n, step):
-        """Traverse n floors and elapse time accordingly."""
-        for _ in range(n):
-            self.floor += step
-            yield self.env.timeout(self.f2f_time)
-
     def _move_one_floor(self):
         """Elapse time required to move one floor."""
-        yield self.env.timeout(self.f2f_time)
+        self.env.timeout(self.f2f_time)
 
     def _pickup_single_passenger(self):
         """Elapse time required to pick up one passenger."""
-        yield self.env.timeout(self.pickup_duration)
+        self.env.timeout(self.pickup_duration)
 
     def _dropoff_single_passenger(self):
         """Elapse time required to drop off one passenger."""
-        yield self.env.timeout(self.dropoff_duration)
+        self.env.timeout(self.dropoff_duration)
 
 
 class CallManager:

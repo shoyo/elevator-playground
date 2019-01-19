@@ -53,6 +53,16 @@ def bitify(direction):
         return 0
     else:
         raise Exception("Can only bitify 1 or -1.")
+
+
+def to_string(direction):
+    """Return 'UP' if direction is 1, 'DOWN' if direction is -1."""
+    if direction == UP:
+        return "UP"
+    elif direction == DOWN:
+        return "DOWN"
+    else:
+        raise Exception("Can only convert to string 1 or -1.")
 # ----
 
 
