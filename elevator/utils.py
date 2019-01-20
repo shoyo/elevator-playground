@@ -6,7 +6,7 @@ from random import sample
 
 # -- Outputting simulation state --
 def frame_to_time(frames):
-    """Converts frames (10 fps) into corresponding string ' hh:mm:ss:msms'.
+    """Convert frames (10 fps) into corresponding string 'hh:mm:ss:msms'.
 
     Examples:
     >>> frame_to_time(100)
@@ -35,6 +35,7 @@ def frame_to_time(frames):
 
 
 def print_status(time, status):
+    """Print some status with a corresponding in-simulation time."""
     print(f"{frame_to_time(time)} - {status}")
 # ----
 
@@ -70,6 +71,7 @@ def to_string(direction):
 
 # -- ID generator for Call class --
 def call_id_generator():
+    """A generator to sequentially yield a unique value."""
     call_id = 1
     while True:
         yield call_id
@@ -81,7 +83,22 @@ id_gen = call_id_generator()
 
 
 class Call:
+    """An elevator call to go from one floor to another at a specific time."""
     def __init__(self, source, destination, time):
+        """Create a new call.
+
+        id           -- unique number to identify a call
+        source       -- floor that requires pick-up
+        dest         -- floor that requires drop-off (may or may not be
+                        viewed by dispatching mechanism)
+        direction    -- the direction
+        orig time    -- time* that the call was initialized
+        wait time    -- time* elapsed between initialization and pick-up
+        process time -- time* elapsed between initialization and completion
+        done         -- True if call has been completed, False otherwise
+
+        (*Unit is 0.1 seconds. Example: 75 -> 7.5 in-simulation seconds)
+        """
         self.id = next(id_gen)
         self.source = source
         self.dest = destination
@@ -98,9 +115,11 @@ class Call:
         self.done = False
 
     def picked_up(self, pick_up_time):
+        """Set the wait time according to when call was picked up."""
         self.wait_time = pick_up_time - self.orig_time
 
     def completed(self, completion_time):
+        """Mark the call as completed and calculate the total process time."""
         self.done = True
         self.process_time = completion_time - self.orig_time
 
