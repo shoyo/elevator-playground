@@ -8,7 +8,18 @@ from abc import ABC, abstractmethod
 class Building(ABC):
     """A building containing elevators that handles generated calls."""
     def __init__(self, num_floors, num_elevators):
-        """Create a building with a
+        """Create a building with specified number of floors and elevators.
+
+        env            -- simpy.Environment instance that runs the simulation
+        call generator -- simpy process for generating calls
+        call assigner  -- simpy process for assigning calls
+        call queue     -- queue for holding generated calls yet to be assigned
+        call history   -- list of all calls that have been generated
+        num floors     -- number of floors in building
+        num elevators  -- number of elevators in building
+        elevators      -- list of elevator instances contained in building
+        service ranges -- dictionary mapping each elevator to the floors that
+                          they are able to access
         """
         self.env = simpy.Environment()
         self.call_generator = self.env.process(self._generate_calls())
@@ -65,7 +76,7 @@ class BasicBuilding(Building):
     def _generate_calls(self):
         print_status(self.env.now, f"Building has started generating calls...")
         while True:
-            yield self.env.timeout(6000)
+            yield self.env.timeout(100)
             call = self._generate_single_call()
             self.call_queue.put(call)
             self.call_history.append(call)
