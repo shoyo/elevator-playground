@@ -1,6 +1,2 @@
 .DS_Store
-.idea
-elevator/__pycache__
-elevator/.DS_Store
-tests/__pycache__
-TODO.txt
+__pycache__/
