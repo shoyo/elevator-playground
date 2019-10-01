@@ -6,7 +6,7 @@ A simulation framework to measure the performance of various elevator dispatchin
 ## Getting Started
 The environment has one dependency with SimPy, a Python simulation library that handles time-keeping and asynchronous actions within the simulation runtime. Create a virtual environment and install with
 
-    $ (your-venv) pip install -r requirements.txt
+    (your-venv) $ pip install -r requirements.txt
 
 The simulation parameters set from an external file, called `run.py`. Edit `run.py` in this repo or create your own in the same directory as the `elevator_playground` package.
 
@@ -14,7 +14,7 @@ Within `run.py`, initialize a custom `building` instance with the `elevator_play
 
 From the command line, execute `run.py` with
 
-    $ (your-venv) python run.py
+    (your-venv) $ python run.py
 
 ## Package Structure
 The `elevator_playground` is comprised of 4 components.
