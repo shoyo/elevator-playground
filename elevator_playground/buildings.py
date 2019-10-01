@@ -1,7 +1,7 @@
 import simpy
 from random import randint
-from elevator.elevators import Elevator
-from elevator.utils import print_status, rand_call
+from elevator_playground.elevators import Elevator
+from elevator_playground.utils import print_status, rand_call
 from abc import ABC, abstractmethod
 
 

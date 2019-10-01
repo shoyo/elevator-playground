@@ -1,7 +1,7 @@
 from collections import deque
 
 import simpy
-from elevator.utils import print_status, bitify, to_string, UP, DOWN
+from elevator_playground.utils import print_status, bitify, to_string, UP, DOWN
 
 
 class Elevator:

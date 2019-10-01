@@ -29,7 +29,6 @@ class Session:
 
     def _disp_metrics(self):
         """Calculate and print simulation results."""
-        # TODO: Maybe make this more efficient
         total_wait = sum(r.wait_time for r in self.building.call_history if
                          r.done)
         avg_wait = total_wait / sum(1 for _ in (r for r in self.building.call_history if r.done))
