@@ -15,9 +15,9 @@ class Elevator:
        reverse direction and go to step (1) if there are calls. Otherwise, stop
        and wait for a call (or move to a "waiting floor")
 
-    An Elevator maintains all un-handled calls in a call queue (an instance
-    of the CallQueue class, defined further below). The Elevator continuously
-    handles calls while there are calls in the call queue.
+    An Elevator maintains all un-handled calls in a call manager (an instance
+    of the CallManager class, defined further below). The Elevator continuously
+    handles calls while there are calls in the call manager.
 
     Whenever a call is assigned to an Elevator by a Building, the call is
     placed in the call pipe (a simple deque) to await further processing.
